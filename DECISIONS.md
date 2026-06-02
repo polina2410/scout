@@ -4,6 +4,16 @@ Decisions made to fill gaps in the assignment spec. Each was identified by a pre
 
 ---
 
+## 5. TypeScript pinned to 5.9.3; vitest pinned to 4.1.7
+
+**Problem:** `pnpm create vite` scaffolded TypeScript 6.0.3. `openapi-typescript@7.13.0` (latest) declares `peerDependencies: { typescript: "^5.x" }` and does not support TypeScript 6 yet. `vitest@4.1.8` was published the day of setup (2026-06-01), failing the one-week-old rule.
+
+**Decision:** Pin `typescript@5.9.3` (latest 5.x, published 2025-09-30) and `vitest@4.1.7` (published 2026-05-20).
+
+**Why:** `openapi-typescript` is a core build tool — type generation breaking at install would block all frontend API work. The downgrade is a no-op functionally; TypeScript 5.9 is stable. `vitest@4.1.7` is one patch behind latest with no known regressions; upgrade when `4.1.8` is older than a week.
+
+---
+
 ## 1. Thumbnail URL interface
 
 **Problem:** The README says "the interface is yours" but the gallery's bbox math depends on knowing the exact rendered pixel dimensions, which are determined by the thumbnail URL shape. Without an agreed contract, backend and frontend would conflict.
