@@ -1,6 +1,3 @@
-# ── Planning (local only) ─────────────────────────────────────────────────────
-PLAN.md
-
 # ── Environment ───────────────────────────────────────────────────────────────
 .env.local
 .env.*.local
@@ -20,6 +17,9 @@ PLAN.md
 node_modules/
 dist/
 .vite/
+frontend/node_modules/
+frontend/dist/
+frontend/src/api/generated/
 
 # ── Thumbnail cache ───────────────────────────────────────────────────────────
 /cache/
