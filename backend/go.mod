@@ -5,6 +5,8 @@ go 1.25.0
 require (
 	github.com/google/uuid v1.6.0
 	github.com/minio/minio-go/v7 v7.2.0
+	golang.org/x/image v0.41.0
+	golang.org/x/sync v0.20.0
 	modernc.org/sqlite v1.51.0
 )
 

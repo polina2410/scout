@@ -2,26 +2,32 @@ package middleware
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/json"
 	"net/http"
+	"strings"
 )
 
 // APIKeyAuth returns middleware that enforces X-API-Key on every request.
-// Requests to /health bypass auth — that route is a liveness probe.
+// Requests to /health and /thumbnails/ bypass auth.
 // Panics if key is empty — an empty key would grant access to all requests.
+//
+// Comparison uses SHA-256 hashes so both operands are always 32 bytes,
+// preventing timing attacks that could leak the key length via early exit.
 func APIKeyAuth(key string) func(http.Handler) http.Handler {
 	if key == "" {
 		panic("APIKeyAuth: empty API key — server cannot start with an open API")
 	}
+	keyHash := sha256.Sum256([]byte(key))
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/health" {
+			if r.URL.Path == "/health" || strings.HasPrefix(r.URL.Path, "/thumbnails/") {
 				next.ServeHTTP(w, r)
 				return
 			}
-			given := r.Header.Get("X-API-Key")
-			if subtle.ConstantTimeCompare([]byte(given), []byte(key)) != 1 {
+			givenHash := sha256.Sum256([]byte(r.Header.Get("X-API-Key")))
+			if subtle.ConstantTimeCompare(givenHash[:], keyHash[:]) != 1 {
 				writeUnauthorized(w, r)
 				return
 			}
