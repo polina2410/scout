@@ -1,26 +1,40 @@
 package main
 
 import (
-	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
+
+	"github.com/polina2410/scout/backend/internal/config"
+	"github.com/polina2410/scout/backend/internal/handler"
+	"github.com/polina2410/scout/backend/internal/logger"
+	"github.com/polina2410/scout/backend/internal/middleware"
 )
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	cfg, err := config.Load()
+	if err != nil {
+		slog.Error("config error", "error", err)
+		os.Exit(1)
 	}
 
+	log := logger.New(os.Stdout, cfg.LogLevel)
+
 	mux := http.NewServeMux()
+
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		handler.WriteJSON(w, http.StatusOK, map[string]string{
+			"status":  "ok",
+			"version": "dev",
+		})
 	})
 
-	log.Printf("listening on :%s", port)
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
-		log.Fatalf("server error: %v", err)
+	var h http.Handler = mux
+	h = middleware.CorrelationID(log)(h)
+
+	log.Info("server starting", "port", cfg.Port)
+	if err := http.ListenAndServe(":"+cfg.Port, h); err != nil {
+		log.Error("server stopped", "error", err)
+		os.Exit(1)
 	}
 }
