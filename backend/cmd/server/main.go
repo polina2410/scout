@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/polina2410/scout/backend/internal/config"
+	"github.com/polina2410/scout/backend/internal/db"
 	"github.com/polina2410/scout/backend/internal/handler"
 	"github.com/polina2410/scout/backend/internal/logger"
 	"github.com/polina2410/scout/backend/internal/middleware"
@@ -19,6 +20,13 @@ func main() {
 	}
 
 	log := logger.New(os.Stdout, cfg.LogLevel)
+
+	database, err := db.Open(cfg.DBPath)
+	if err != nil {
+		log.Error("failed to open database", "error", err)
+		os.Exit(1)
+	}
+	defer database.Close()
 
 	mux := http.NewServeMux()
 
