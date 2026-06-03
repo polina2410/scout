@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/polina2410/scout/backend/internal/config"
@@ -12,6 +13,7 @@ import (
 	"github.com/polina2410/scout/backend/internal/logger"
 	"github.com/polina2410/scout/backend/internal/middleware"
 	minioclient "github.com/polina2410/scout/backend/internal/minio"
+	"github.com/polina2410/scout/backend/internal/thumb"
 )
 
 const version = "dev"
@@ -44,6 +46,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	thumbCacheDir := filepath.Join(os.TempDir(), "scout-thumb-cache")
+	thumbCache, err := thumb.NewDiskCache(thumbCacheDir, cfg.ThumbCacheSizeMB*1024*1024)
+	if err != nil {
+		log.Error("failed to create thumb cache", "error", err)
+		os.Exit(1)
+	}
+
+	thumbSvc := thumb.New(store, thumbCache, log)
+
 	app := &handler.App{
 		DB:    database,
 		Store: store,
@@ -62,6 +73,7 @@ func main() {
 	mux.HandleFunc("POST /photos/{photoId}/upload-link", app.CreateUploadLink)
 	mux.HandleFunc("GET /photos/{photoId}", app.GetPhoto)
 	mux.HandleFunc("GET /photos", app.ListPhotos)
+	mux.HandleFunc("GET /thumbnails/{photoId}", thumbSvc.Handle)
 
 	var h http.Handler = mux
 	h = middleware.APIKeyAuth(cfg.APIKey)(h)

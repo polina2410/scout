@@ -2,12 +2,17 @@ package minio
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	miniogo "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
+
+// ErrObjectNotFound is returned by GetOriginal when the object does not exist in the bucket.
+var ErrObjectNotFound = errors.New("object not found in bucket")
 
 const (
 	getURLTTL  = time.Hour
@@ -88,6 +93,30 @@ func (c *Client) PresignedPutURL(ctx context.Context, photoID, contentType strin
 	}
 	headers := map[string]string{"Content-Type": contentType}
 	return u.String(), headers, time.Now().Add(ttl), nil
+}
+
+// GetOriginal streams the original JPEG bytes for the given photo.
+// Returns ErrObjectNotFound (wrapped) if the object does not exist in the bucket.
+// Caller must close the returned ReadCloser.
+func (c *Client) GetOriginal(ctx context.Context, photoID string) (io.ReadCloser, error) {
+	obj, err := c.mc.GetObject(ctx, c.bucket, ObjectKey(photoID), miniogo.GetObjectOptions{})
+	if err != nil {
+		resp := miniogo.ToErrorResponse(err)
+		if resp.Code == "NoSuchKey" {
+			return nil, ErrObjectNotFound
+		}
+		return nil, fmt.Errorf("get object %q: %w", photoID, err)
+	}
+	// Trigger the actual HTTP request by calling Stat; GetObject is lazy.
+	if _, err := obj.Stat(); err != nil {
+		obj.Close()
+		resp := miniogo.ToErrorResponse(err)
+		if resp.Code == "NoSuchKey" {
+			return nil, ErrObjectNotFound
+		}
+		return nil, fmt.Errorf("stat object %q: %w", photoID, err)
+	}
+	return obj, nil
 }
 
 // PresignedGetURL returns a fresh 1-hour presigned GET URL for the given photo.
