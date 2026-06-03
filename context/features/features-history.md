@@ -1,13 +1,4 @@
-# Current Feature
-
-## Status
-Not Started
-
-## Goals
-
-## Notes
-
-## History
+# Features History
 
 ### project-structure-and-tooling
 Scaffolded Go module, Makefile, Docker Compose for MinIO, `.env.example`, `go.sum`, and CI-ready project skeleton.
