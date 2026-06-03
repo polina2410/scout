@@ -41,12 +41,14 @@ func WriteError(w http.ResponseWriter, r *http.Request, status int, code string,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
+	// Write error is intentionally ignored: the status line is already committed,
+	// so there is nothing meaningful to do if the body write fails.
 	buf.WriteTo(w) //nolint:errcheck
 }
 
 // WriteJSON writes a 2xx JSON response.
 // status is the HTTP status code. v is JSON-encoded into the body.
-func WriteJSON(w http.ResponseWriter, status int, v any) {
+func WriteJSON[T any](w http.ResponseWriter, status int, v T) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(v) //nolint:errcheck
