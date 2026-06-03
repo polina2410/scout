@@ -1,75 +1,89 @@
 ---
 name: plan-writing
 description: >
-  Structured task decomposition before implementation. Use before starting any non-trivial
-  feature, refactor, or bug fix. Produces a concise, verifiable plan saved to context/plans/.
-  Trigger words: plan, let's plan, before we start, design the approach, break this down.
-argument-hint: <task-description>
+  Write a feature spec before implementation starts. Reads PLAN.md and existing specs
+  for context, produces a detailed spec in the project format, and saves it to context/specs/.
+  Trigger words: spec, create spec, write spec, spec for step, let's plan, before we start.
+argument-hint: <step-name-or-description>
 ---
 
-# Plan Writing
+# Spec Writing
 
-Create a concise implementation plan before starting work.
+Write a feature spec before implementation starts.
 
 ## Task
 
-Write a plan for: $ARGUMENTS
+Write a spec for: $ARGUMENTS
 
 ---
 
 ## Rules
 
-- **Max 1 page** — if it's longer, simplify
-- **5–10 tasks** — no more, no fewer
-- Each task must have a **concrete action** and a **verifiable outcome**
-- Save the plan to `context/plans/{task-slug}.md`
-- Update checkboxes as work progresses
+- Match the format of existing specs in `context/specs/` exactly
+- Save to `context/specs/{NN}-{slug}.md` — use the next available number
+- Numbered `##` sections, one per logical concern
+- `## Acceptance criteria` at the end with checkboxes
+- Include a `## Carry-forward items` section if prior review found deferred issues
+- **No checkbox task lists** — specs describe *what* to build, not *how to track progress*
 
 ---
 
 ## Process
 
-1. Understand the goal — read `context/features/current-feature.md` if a feature is active
-2. Identify affected files (read them before writing the plan)
-3. Break work into 5–10 sequential tasks
-4. Write the plan using the format below
-5. Save to `context/plans/{task-slug}.md`
-6. Show a summary and ask for approval before starting
+1. Read `PLAN.md` to understand where this step fits in the overall build
+2. Read existing specs in `context/specs/` to match format and numbering
+3. Read `CLAUDE.md` for project constraints, `openapi.yaml` for API contract if relevant
+4. Read any existing stub files for the packages being specified
+5. Read `context/features/features-history.md` to understand what's already built
+6. Write the spec — numbered sections, concrete signatures/SQL/types where needed
+7. Save to `context/specs/{NN}-{slug}.md`
+8. Show a summary and ask for approval
 
 ---
 
-## Plan Format
+## Spec Format
 
 ```markdown
-# Plan: {Task Name}
+# Spec {N} — {Name}
 
+**Plan ref:** Phase X, Step Y
 **Goal:** One sentence describing the end state.
 
-## Tasks
+---
 
-- [ ] 1. {Concrete action} → verify: {how to confirm it worked}
-- [ ] 2. {Concrete action} → verify: {how to confirm it worked}
-- [ ] ...
+## 1. {First concern}
 
-## Done When
+{Detailed description, code signatures, SQL, types, behaviour rules}
 
-- [ ] `pnpm lint` passes
-- [ ] `pnpm test:run` passes
-- [ ] `pnpm build` passes
-- [ ] {feature-specific check}
+---
 
-## Notes
+## 2. {Second concern}
 
-{Any constraints, risks, or decisions to flag}
+...
+
+---
+
+## Carry-forward items (if any)
+
+Issues caught in a prior review that belong in this step:
+
+- **Item** — description and fix
+
+---
+
+## Acceptance criteria
+
+- [ ] {Concrete, verifiable check}
+- [ ] {Another check}
 ```
 
 ---
 
-## Good vs Bad Tasks
+## Good vs Bad Sections
 
 | Bad (vague) | Good (concrete) |
-|-------------|-----------------|
-| Set up the component | Create `components/features/X/X.tsx` with named export `X` |
-| Add tests | Write test for `useX` covering happy path and empty-state edge case in `__tests__/hooks/useX.test.ts` |
-| Fix the bug | Trace null value in `[function]` → add guard before `.map()` call |
-| Make it work | Run `pnpm dev`, navigate to `[route]`, confirm [behaviour] |
+|---|---|
+| Add the client | Show the struct, `New` signature, and exact error behaviour |
+| Write tests | Name each test case and what it asserts |
+| Handle errors | Specify which errors map to which HTTP status codes |
+| Wire it up | Show the exact `main.go` snippet and what to defer/close |
