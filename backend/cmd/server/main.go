@@ -44,25 +44,34 @@ func main() {
 		os.Exit(1)
 	}
 
-	_ = store // used by handlers in Step 5
+	app := &handler.App{
+		DB:    database,
+		Store: store,
+		Log:   log,
+	}
 
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		handler.WriteJSON(w, http.StatusOK, map[string]string{
-			"status":  "ok",
-			"version": version,
+		handler.WriteJSON(w, http.StatusOK, handler.HealthResponse{
+			Status:  "ok",
+			Version: version,
 		})
 	})
 
+	mux.HandleFunc("POST /photos/{photoId}/upload-link", app.CreateUploadLink)
+	mux.HandleFunc("GET /photos/{photoId}", app.GetPhoto)
+	mux.HandleFunc("GET /photos", app.ListPhotos)
+
 	var h http.Handler = mux
+	h = middleware.APIKeyAuth(cfg.APIKey)(h)
 	h = middleware.CorrelationID(log)(h)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      h,
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 60 * time.Second, // generous for thumbnail streaming (Step 6)
+		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 

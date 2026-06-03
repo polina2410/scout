@@ -60,7 +60,7 @@ func openTestDB(t *testing.T) *DB {
 	if _, err := sqlDB.Exec(fixtures); err != nil {
 		t.Fatalf("insert fixtures: %v", err)
 	}
-	d := newDB(sqlDB)
+	d := NewDB(sqlDB)
 	t.Cleanup(func() { d.Close() })
 	return d
 }

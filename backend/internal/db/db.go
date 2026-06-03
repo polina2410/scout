@@ -12,7 +12,10 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const defaultPageLimit = 50
+const (
+	defaultPageLimit = 50
+	maxPageLimit     = 200 // matches openapi.yaml GET /photos limit.maximum
+)
 
 // ErrNotFound is returned by GetPhoto when the photo ID does not exist.
 var ErrNotFound = errors.New("not found")
@@ -22,7 +25,8 @@ type DB struct {
 	db *sql.DB
 }
 
-func newDB(sqlDB *sql.DB) *DB {
+// NewDB wraps an existing *sql.DB. Intended for testing — production code should use Open.
+func NewDB(sqlDB *sql.DB) *DB {
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetMaxIdleConns(1)
 	return &DB{db: sqlDB}
@@ -36,7 +40,7 @@ func Open(path string) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	d := newDB(sqlDB)
+	d := NewDB(sqlDB)
 	if err := sqlDB.Ping(); err != nil {
 		sqlDB.Close()
 		return nil, err
@@ -79,8 +83,8 @@ func (d *DB) ListPhotos(ctx context.Context, p ListParams) ([]Photo, string, err
 	if p.Limit <= 0 {
 		p.Limit = defaultPageLimit
 	}
-	if p.Limit > defaultPageLimit {
-		p.Limit = defaultPageLimit
+	if p.Limit > maxPageLimit {
+		p.Limit = maxPageLimit
 	}
 
 	// Decode cursor into (capturedAt, id) pair.
