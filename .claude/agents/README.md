@@ -13,8 +13,6 @@ Custom Claude Code subagents for this project. These files go in your project's 
 - `ba.md` - Business analyst for requirements, user stories, and acceptance criteria before implementation
 - `qa.md` - E2E and integration testing specialist using Playwright MCP; covers user journeys, visual regression, and accessibility
 - `devops.md` - CI/CD and deployment specialist; owns GitHub Actions workflows, environment variables, Vercel config, and secret hygiene
-- `performance.md` - Next.js performance auditor; bundle size, Core Web Vitals, server/client split, ISR caching, animation CLS risk
-- `prisma.md` - Prisma data layer specialist; schema design, query patterns, migrations, N+1 prevention, type safety
 - `a11y.md` - Accessibility specialist; WCAG AA audits, keyboard navigation, ARIA patterns, focus management, live region announcements
 - `api.md` - API route auditor; checks thin routes, Zod validation, error response shapes, caching, rate limiting coverage
 - `coverage.md` - Test coverage auditor; runs coverage analysis, identifies gaps by priority, hands off to test-master

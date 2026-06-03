@@ -1,7 +1,6 @@
 package thumb
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,6 +8,7 @@ import (
 	"image/jpeg"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"strconv"
 	"sync/atomic"
@@ -27,6 +27,13 @@ const (
 	jpegQuality   = 85 // JPEG encode quality [0,100]
 )
 
+// genBucketBoundsMs are the upper bounds (inclusive, ms) for generation time buckets.
+// Higher bounds than the request latency histogram because generation involves
+// a MinIO fetch + JPEG decode + resize + encode — typically 100ms–2000ms.
+var genBucketBoundsMs = [...]int64{50, 100, 250, 500, 750, 1000, 2000, 3000, 5000}
+
+const numGenBuckets = len(genBucketBoundsMs) + 1
+
 var errAtCapacity = errors.New("thumbnail generation at capacity")
 
 // Downloader fetches original photo bytes from object storage.
@@ -42,7 +49,8 @@ type ThumbMetrics struct {
 	CacheMisses int64
 	GenOK       int64
 	GenErr      int64
-	GenTotalNs  int64 // divide by GenOK for mean generation time
+	GenTotalNs  int64
+	GenP95Ms    float64
 }
 
 // Service handles thumbnail generation, caching, and concurrency control.
@@ -52,11 +60,12 @@ type Service struct {
 	sem   chan struct{} // capacity maxConcurrent
 	log   *slog.Logger
 
-	hits   atomic.Int64
-	misses atomic.Int64
-	genOK  atomic.Int64
-	genErr atomic.Int64
-	genNs  atomic.Int64
+	hits       atomic.Int64
+	misses     atomic.Int64
+	genOK      atomic.Int64
+	genErr     atomic.Int64
+	genNs      atomic.Int64
+	genBuckets [numGenBuckets]atomic.Int64
 
 	group singleflight.Group
 }
@@ -73,13 +82,37 @@ func New(store Downloader, cache *DiskCache, log *slog.Logger) *Service {
 
 // Metrics returns a point-in-time snapshot of service counters.
 func (s *Service) Metrics() ThumbMetrics {
+	genOK := s.genOK.Load()
+	var buckets [numGenBuckets]int64
+	for i := range buckets {
+		buckets[i] = s.genBuckets[i].Load()
+	}
 	return ThumbMetrics{
 		CacheHits:   s.hits.Load(),
 		CacheMisses: s.misses.Load(),
-		GenOK:       s.genOK.Load(),
+		GenOK:       genOK,
 		GenErr:      s.genErr.Load(),
 		GenTotalNs:  s.genNs.Load(),
+		GenP95Ms:    genPercentileMs(buckets, genOK, 0.95),
 	}
+}
+
+func genPercentileMs(buckets [numGenBuckets]int64, total int64, p float64) float64 {
+	if total == 0 {
+		return 0
+	}
+	target := int64(math.Ceil(p * float64(total)))
+	var cum int64
+	for i, count := range buckets {
+		cum += count
+		if cum >= target {
+			if i < len(genBucketBoundsMs) {
+				return float64(genBucketBoundsMs[i])
+			}
+			return float64(genBucketBoundsMs[len(genBucketBoundsMs)-1])
+		}
+	}
+	return 0
 }
 
 // Handle is the HTTP handler for GET /thumbnails/{photoId}.
@@ -157,28 +190,26 @@ func (s *Service) generate(ctx context.Context, p Params) ([]byte, error) {
 	dst := image.NewNRGBA(image.Rect(0, 0, dstW, dstH))
 	draw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Over, nil)
 
-	var buf bytes.Buffer
-	// WebP encoding requires CGO (github.com/chai2010/webp). In environments without
-	// a C compiler, both fmt=webp and fmt=jpeg are served as JPEG — a valid fallback
-	// per the CLAUDE.md spec ("webp preferred | jpeg fallback"). Enable by adding
-	// the import and swapping the webp branch when CGO is available (e.g. in Docker).
-	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: jpegQuality}); err != nil {
+	data, encErr := encodeImage(dst, p.Fmt)
+	if encErr != nil {
 		s.genErr.Add(1)
-		return nil, fmt.Errorf("encode jpeg: %w", err)
+		return nil, fmt.Errorf("encode %s: %w", p.Fmt, encErr)
 	}
 
-	s.genNs.Add(time.Since(t0).Nanoseconds())
-	s.genOK.Add(1)
-	return buf.Bytes(), nil
-}
+	elapsed := time.Since(t0)
+	durationMs := elapsed.Milliseconds()
+	s.genNs.Add(elapsed.Nanoseconds())
 
-// effectiveFormat returns the format that will actually be encoded.
-// WebP encoding requires CGO (github.com/chai2010/webp); without it both
-// "webp" and "jpeg" requests produce JPEG. When CGO is available, replace
-// this function to return imgFmt unchanged.
-func effectiveFormat(imgFmt string) string {
-	_ = imgFmt
-	return "jpeg"
+	bucketIdx := numGenBuckets - 1
+	for i, bound := range genBucketBoundsMs {
+		if durationMs <= bound {
+			bucketIdx = i
+			break
+		}
+	}
+	s.genBuckets[bucketIdx].Add(1)
+	s.genOK.Add(1)
+	return data, nil
 }
 
 func mimeType(imgFmt string) string {
