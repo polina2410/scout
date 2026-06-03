@@ -11,6 +11,8 @@ scout-takehome/
 ├── dataset/
 │   ├── images/       50 JPEGs — ingest into MinIO, do not serve from here
 │   └── predictions.db  SQLite — read directly, do not copy or migrate
+├── context/
+│   └── specs/        feature specs (one file per feature/step)
 ├── openapi.yaml      Data API contract (source of truth)
 ├── .env.example
 ├── .env.local        gitignored — local dev values
