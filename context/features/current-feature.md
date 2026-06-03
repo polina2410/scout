@@ -1,31 +1,11 @@
-# Current Feature: /metrics Endpoint
+# Current Feature
 
 ## Status
-In Progress
+Not Started
 
 ## Goals
 
-- New `internal/metrics` package with `Collector` (fixed-bucket histogram, status split, uptime), `Middleware`, and `Snapshot` type
-- `Snapshot` exposes: `Total`, `Total2xx/4xx/5xx`, `UptimeSec`, `RequestsPerSec`, `ErrorRate`, `LatencyMeanMs`, `LatencyP50Ms`, `LatencyP95Ms`
-- `internal/handler/metrics.go` — `ThumbSnapshot` struct + `MetricsHandler(col, func() ThumbSnapshot)` with no import cycle
-- `GET /metrics` returns JSON with `requests` and `thumbnails` sections including `requests_per_sec`, `error_rate`, and `gen_p95_ms`
-- Retroactive carry-forward in `internal/thumb/`: generation time histogram (`genBuckets`, `genBucketBoundsMs`), `genPercentileMs`, `GenP95Ms` added to `ThumbMetrics`
-- Middleware wired between `CorrelationID` and `APIKeyAuth` — counts all requests including 401s
-- All derived fields (`requests_per_sec`, `error_rate`, `cache_hit_rate`, `gen_mean_ms`, `gen_p95_ms`) return `0.0` (not NaN) in zero state
-- 7 collector/middleware unit tests + 2 handler tests
-- `go test ./internal/metrics/... ./internal/handler/... ./internal/thumb/...` passes
-
 ## Notes
-
-- Spec: `context/specs/07-metrics-endpoint.md`
-- `bucketBoundsMs` for request latency: `[1, 5, 10, 25, 50, 100, 250, 500, 1000]` ms
-- `genBucketBoundsMs` for generation time: `[50, 100, 250, 500, 750, 1000, 2000, 3000, 5000]` ms — higher bounds match typical MinIO fetch + decode + resize + encode time
-- Import cycle prevention: `handler` imports `internal/metrics` (new pkg); `thumb` is never imported by `handler` — thumbnail data passed via `func() ThumbSnapshot` closure in `main.go`
-- Auth: no bypass — `GET /metrics` requires `X-API-Key` like all data routes
-- Middleware order (outermost first): `CorrelationID → MetricsMiddleware → APIKeyAuth → mux`
-- `[numGenBuckets]atomic.Int64` for generation histogram (lock-free per-bucket increments); `Metrics()` snapshot loads each bucket with one `Load()` call — no transactional consistency required
-- `requests_per_sec` is `0.0` when `UptimeSec == 0` (startup edge case only)
-- `TestCollector_RateAndErrorRate` must wait a non-zero duration after `NewCollector()` before taking the snapshot — use a fresh `Collector` with a fixed `startTime` set 1s in the past, or call `time.Sleep(1ms)` before asserting
 
 ## History
 
@@ -46,3 +26,6 @@ Implemented the full data API surface. `App` struct (`internal/handler/app.go`) 
 
 ### thumbnail-endpoint
 Implemented `GET /thumbnails/{photoId}?w={width}&dpr={dpr}&fmt={fmt}` in `internal/thumb/`. `ParseParams` validates all four params and collects all errors before returning. `DiskCache` is a size-bounded LRU using `container/list` + `sync.Mutex`; `safePath()` guards against key-based path traversal. `Service` uses `singleflight.Group` with a 4-slot semaphore inside the closure so N coalesced requests consume exactly 1 generation slot. `generate` fetches via `Downloader` interface, decodes JPEG, scales with `golang.org/x/image/draw.CatmullRom`, and encodes as JPEG (WebP requires CGO — `effectiveFormat()` normalises the cache key to `"jpeg"` until a C compiler is available). `ErrObjectNotFound` on `*minio.Client` uses `errors.New`; `GetOriginal` triggers the MinIO GET via `Stat()`. Auth middleware updated to bypass `/thumbnails/`. API key comparison upgraded to SHA-256 hash comparison to prevent length timing leak. `Content-Length` set on all image responses. 22 tests (9 param, 5 cache, 8 handler; mock Downloader, no live MinIO required).
+
+### metrics-endpoint
+Implemented `GET /metrics` returning JSON with `requests` and `thumbnails` sections. New `internal/metrics` package: `Collector` (fixed-bucket latency histogram, status split by 2xx/4xx/5xx, mutex-protected), `Middleware` (wraps `ResponseWriter` to capture status code), and `Snapshot` (derived fields: `requests_per_sec`, `error_rate`, `latency_mean_ms`, `latency_p50_ms`, `latency_p95_ms` — all `0.0` not NaN in zero state). `internal/handler/metrics.go` defines `ThumbSnapshot` + `MetricsHandler(col, func() ThumbSnapshot)` to avoid an import cycle (`thumb` already imports `handler`). Carry-forward in `thumb/service.go`: added `genBucketBoundsMs` histogram (`[numGenBuckets]atomic.Int64`), `genPercentileMs`, and `GenP95Ms` to `ThumbMetrics`. Middleware wired `CorrelationID → MetricsMiddleware → APIKeyAuth → mux` so all requests including 401s are counted. 7 collector/middleware unit tests + 2 handler tests; `go build ./...` and `go vet ./...` clean.
