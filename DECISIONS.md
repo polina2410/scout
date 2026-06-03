@@ -52,6 +52,16 @@ Decisions made to fill gaps in the assignment spec. Each was identified by a pre
 
 ---
 
+## 6. Logger package location
+
+**Problem:** `NewLogger` needs to live somewhere. Options: `internal/middleware` (first consumer), `internal/logger` (dedicated package), or `main` (inline setup).
+
+**Decision:** Dedicated `internal/logger` package with a single `New(w io.Writer, level string) *slog.Logger` function.
+
+**Why:** `internal/middleware` importing a logger it also constructs creates a subtle coupling — the package does two unrelated things. Inlining in `main` makes the function untestable. A dedicated `internal/logger` package is one file, zero dependencies beyond `log/slog`, and can be imported by middleware, handlers, and any future package without circular imports.
+
+---
+
 ## 4. Seed script `Content-Type` handling
 
 **Problem:** The `POST /photos/{photoId}/upload-link` spec requires `{ "contentType": "image/jpeg" }` in the request body, and the response includes a `headers` map to forward onto the PUT. CLAUDE.md's original seed description omitted both. An implementer following it would get a 400 from their own validation, or store objects as `application/octet-stream`, breaking browser image rendering.
