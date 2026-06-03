@@ -20,6 +20,9 @@ const (
 // ErrNotFound is returned by GetPhoto when the photo ID does not exist.
 var ErrNotFound = errors.New("not found")
 
+// ErrInvalidCursor is returned by ListPhotos when the cursor parameter is malformed.
+var ErrInvalidCursor = errors.New("invalid cursor")
+
 // DB wraps a read-only connection pool to predictions.db.
 type DB struct {
 	db *sql.DB
@@ -92,14 +95,14 @@ func (d *DB) ListPhotos(ctx context.Context, p ListParams) ([]Photo, string, err
 	if p.Cursor != "" {
 		decoded, err := base64.RawURLEncoding.DecodeString(p.Cursor)
 		if err != nil {
-			return nil, "", fmt.Errorf("invalid cursor: %w", err)
+			return nil, "", fmt.Errorf("%w: %w", ErrInvalidCursor, err)
 		}
 		parts := strings.SplitN(string(decoded), "|", 2)
 		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-			return nil, "", errors.New("invalid cursor format")
+			return nil, "", fmt.Errorf("%w: bad format", ErrInvalidCursor)
 		}
 		if _, err := time.Parse(time.RFC3339, parts[0]); err != nil {
-			return nil, "", fmt.Errorf("invalid cursor timestamp: %w", err)
+			return nil, "", fmt.Errorf("%w: bad timestamp: %w", ErrInvalidCursor, err)
 		}
 		cursorTime, cursorID = parts[0], parts[1]
 	}

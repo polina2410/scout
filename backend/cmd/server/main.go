@@ -11,6 +11,7 @@ import (
 	"github.com/polina2410/scout/backend/internal/db"
 	"github.com/polina2410/scout/backend/internal/handler"
 	"github.com/polina2410/scout/backend/internal/logger"
+	metricspkg "github.com/polina2410/scout/backend/internal/metrics"
 	"github.com/polina2410/scout/backend/internal/middleware"
 	minioclient "github.com/polina2410/scout/backend/internal/minio"
 	"github.com/polina2410/scout/backend/internal/thumb"
@@ -54,6 +55,7 @@ func main() {
 	}
 
 	thumbSvc := thumb.New(store, thumbCache, log)
+	collector := metricspkg.NewCollector()
 
 	app := &handler.App{
 		DB:    database,
@@ -74,9 +76,24 @@ func main() {
 	mux.HandleFunc("GET /photos/{photoId}", app.GetPhoto)
 	mux.HandleFunc("GET /photos", app.ListPhotos)
 	mux.HandleFunc("GET /thumbnails/{photoId}", thumbSvc.Handle)
+	mux.HandleFunc("GET /metrics", handler.MetricsHandler(collector, func() handler.ThumbSnapshot {
+		m := thumbSvc.Metrics()
+		entries, bytes := thumbCache.Stats()
+		return handler.ThumbSnapshot{
+			CacheHits:    m.CacheHits,
+			CacheMisses:  m.CacheMisses,
+			CacheEntries: entries,
+			CacheBytes:   bytes,
+			GenOK:        m.GenOK,
+			GenErr:       m.GenErr,
+			GenTotalNs:   m.GenTotalNs,
+			GenP95Ms:     m.GenP95Ms,
+		}
+	}))
 
 	var h http.Handler = mux
 	h = middleware.APIKeyAuth(cfg.APIKey)(h)
+	h = metricspkg.Middleware(collector)(h)
 	h = middleware.CorrelationID(log)(h)
 
 	srv := &http.Server{

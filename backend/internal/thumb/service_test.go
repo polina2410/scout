@@ -109,8 +109,7 @@ func TestHandle_CacheHit(t *testing.T) {
 	dl := &mockDownloader{data: minimalJPEG(t)}
 	svc, cache := newTestService(t, dl)
 
-	// Pre-seed cache with the effective key (effectiveFormat("webp") == "jpeg").
-	cacheKey := fmt.Sprintf("%s_%d_%d_%s", validUUID, 200, 1, "jpeg")
+	cacheKey := fmt.Sprintf("%s_%d_%d_%s", validUUID, 200, 1, effectiveFormat("webp"))
 	fakeData := []byte("fake-image-bytes")
 	if err := cache.Put(cacheKey, fakeData); err != nil {
 		t.Fatalf("cache.Put: %v", err)
@@ -188,8 +187,7 @@ func TestHandle_MetricsCounted(t *testing.T) {
 	doGet(t, svc, thumbURL)
 
 	// Pre-seed cache for second request: cache hit.
-	// effectiveFormat("webp") == "jpeg", so the key uses "jpeg".
-	cacheKey := fmt.Sprintf("%s_%d_%d_%s", validUUID, 400, 1, "jpeg")
+	cacheKey := fmt.Sprintf("%s_%d_%d_%s", validUUID, 400, 1, effectiveFormat("webp"))
 	cache.Put(cacheKey, []byte("cached")) //nolint:errcheck
 	doGet(t, svc, "/thumbnails/"+validUUID+"?w=400&fmt=webp")
 
@@ -199,6 +197,9 @@ func TestHandle_MetricsCounted(t *testing.T) {
 	}
 	if m.CacheMisses != 1 {
 		t.Errorf("CacheMisses: got %d, want 1", m.CacheMisses)
+	}
+	if m.GenP95Ms <= 0 {
+		t.Errorf("GenP95Ms: got %v, want > 0 after one successful generation", m.GenP95Ms)
 	}
 }
 

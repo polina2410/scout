@@ -1,11 +1,31 @@
-# Current Feature
+# Current Feature: /metrics Endpoint
 
 ## Status
-Not Started
+In Progress
 
 ## Goals
 
+- New `internal/metrics` package with `Collector` (fixed-bucket histogram, status split, uptime), `Middleware`, and `Snapshot` type
+- `Snapshot` exposes: `Total`, `Total2xx/4xx/5xx`, `UptimeSec`, `RequestsPerSec`, `ErrorRate`, `LatencyMeanMs`, `LatencyP50Ms`, `LatencyP95Ms`
+- `internal/handler/metrics.go` — `ThumbSnapshot` struct + `MetricsHandler(col, func() ThumbSnapshot)` with no import cycle
+- `GET /metrics` returns JSON with `requests` and `thumbnails` sections including `requests_per_sec`, `error_rate`, and `gen_p95_ms`
+- Retroactive carry-forward in `internal/thumb/`: generation time histogram (`genBuckets`, `genBucketBoundsMs`), `genPercentileMs`, `GenP95Ms` added to `ThumbMetrics`
+- Middleware wired between `CorrelationID` and `APIKeyAuth` — counts all requests including 401s
+- All derived fields (`requests_per_sec`, `error_rate`, `cache_hit_rate`, `gen_mean_ms`, `gen_p95_ms`) return `0.0` (not NaN) in zero state
+- 7 collector/middleware unit tests + 2 handler tests
+- `go test ./internal/metrics/... ./internal/handler/... ./internal/thumb/...` passes
+
 ## Notes
+
+- Spec: `context/specs/07-metrics-endpoint.md`
+- `bucketBoundsMs` for request latency: `[1, 5, 10, 25, 50, 100, 250, 500, 1000]` ms
+- `genBucketBoundsMs` for generation time: `[50, 100, 250, 500, 750, 1000, 2000, 3000, 5000]` ms — higher bounds match typical MinIO fetch + decode + resize + encode time
+- Import cycle prevention: `handler` imports `internal/metrics` (new pkg); `thumb` is never imported by `handler` — thumbnail data passed via `func() ThumbSnapshot` closure in `main.go`
+- Auth: no bypass — `GET /metrics` requires `X-API-Key` like all data routes
+- Middleware order (outermost first): `CorrelationID → MetricsMiddleware → APIKeyAuth → mux`
+- `[numGenBuckets]atomic.Int64` for generation histogram (lock-free per-bucket increments); `Metrics()` snapshot loads each bucket with one `Load()` call — no transactional consistency required
+- `requests_per_sec` is `0.0` when `UptimeSec == 0` (startup edge case only)
+- `TestCollector_RateAndErrorRate` must wait a non-zero duration after `NewCollector()` before taking the snapshot — use a fresh `Collector` with a fixed `startTime` set 1s in the past, or call `time.Sleep(1ms)` before asserting
 
 ## History
 

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"sync"
@@ -53,6 +54,12 @@ func (a *App) ListPhotos(w http.ResponseWriter, r *http.Request) {
 		MinConfidence: minConfidence,
 	})
 	if err != nil {
+		if errors.Is(err, db.ErrInvalidCursor) {
+			WriteValidationError(w, r, []ValidationDetail{
+				{Field: "cursor", Issue: "invalid or malformed cursor"},
+			})
+			return
+		}
 		a.Log.Error("list photos failed", "error", err)
 		WriteError(w, r, http.StatusInternalServerError, ErrCodeInternal, "failed to list photos")
 		return
