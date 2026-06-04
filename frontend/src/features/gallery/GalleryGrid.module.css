@@ -33,6 +33,13 @@
   color: #888;
 }
 
+.loadMoreError {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  color: #e05c5c;
+}
+
 .sentinel {
   height: 1px;
 }

@@ -4,7 +4,7 @@ import { PhotoCard } from './PhotoCard'
 import styles from './GalleryGrid.module.css'
 
 export function GalleryGrid() {
-  const { photos, status, error, hasMore, loadMore } = usePhotos()
+  const { photos, status, error, loadMoreError, hasMore, loadMore } = usePhotos()
   const sentinelRef = useRef<HTMLDivElement>(null)
   const loadMoreRef = useRef(loadMore)
 
@@ -47,6 +47,9 @@ export function GalleryGrid() {
       </div>
       {status === 'loading-more' && (
         <div className={styles.loadingMore}>Loading more…</div>
+      )}
+      {loadMoreError && (
+        <div className={styles.loadMoreError}>{loadMoreError}</div>
       )}
       <div ref={sentinelRef} className={styles.sentinel} />
     </>

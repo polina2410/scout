@@ -9,6 +9,7 @@ interface State {
   photos: Photo[]
   status: Status
   error: string | null
+  loadMoreError: string | null
   cursor: string | undefined
 }
 
@@ -23,17 +24,17 @@ type Action =
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'RESET':
-      return { photos: [], status: 'loading', error: null, cursor: undefined }
+      return { photos: [], status: 'loading', error: null, loadMoreError: null, cursor: undefined }
     case 'FIRST_PAGE_SUCCESS':
-      return { ...state, status: 'success', photos: action.photos, cursor: action.cursor, error: null }
+      return { ...state, status: 'success', photos: action.photos, cursor: action.cursor, error: null, loadMoreError: null }
     case 'LOAD_MORE':
-      return { ...state, status: 'loading-more' }
+      return { ...state, status: 'loading-more', loadMoreError: null }
     case 'MORE_PAGE_SUCCESS':
-      return { ...state, status: 'success', photos: [...state.photos, ...action.photos], cursor: action.cursor, error: null }
+      return { ...state, status: 'success', photos: [...state.photos, ...action.photos], cursor: action.cursor, error: null, loadMoreError: null }
     case 'ERROR':
       return { ...state, status: 'error', error: action.message }
     case 'MORE_ERROR':
-      return { ...state, status: 'error', error: action.message }
+      return { ...state, status: 'success', loadMoreError: action.message }
     default:
       return state
   }
@@ -43,6 +44,7 @@ export interface UsePhotosResult {
   photos: Photo[]
   status: Status
   error: string | null
+  loadMoreError: string | null
   hasMore: boolean
   loadMore: () => void
 }
@@ -54,6 +56,7 @@ export function usePhotos(
     photos: [],
     status: 'loading',
     error: null,
+    loadMoreError: null,
     cursor: undefined,
   })
 
@@ -111,6 +114,7 @@ export function usePhotos(
     photos: state.photos,
     status: state.status,
     error: state.error,
+    loadMoreError: state.loadMoreError,
     hasMore: state.cursor !== undefined,
     loadMore,
   }
