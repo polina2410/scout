@@ -17,7 +17,7 @@ function makeStore(preloadedFilters?: Partial<{ classId: ClassId | null; minConf
   return configureStore({
     reducer: { filters: filtersReducer, selectedPhoto: selectedPhotoReducer },
     preloadedState: {
-      filters: { classId: null, minConfidence: 0, ...preloadedFilters },
+      filters: { classId: null, minConfidence: 0, locationFilter: null, ...preloadedFilters },
     },
   })
 }

@@ -2,14 +2,19 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import { useAppSelector } from '../../store/hooks'
 import { usePhotos } from './usePhotos'
 import { PhotoCard } from './PhotoCard'
+import { photosNearby } from '../map/mapUtils'
 import styles from './GalleryGrid.module.css'
 
 export function GalleryGrid() {
   const classId = useAppSelector((s) => s.filters.classId)
   const minConfidence = useAppSelector((s) => s.filters.minConfidence)
+  const locationFilter = useAppSelector((s) => s.filters.locationFilter)
   const { photos, status, error, loadMoreError, hasMore, loadMore } = usePhotos(
     { classId: classId ?? undefined, minConfidence }
   )
+  const visiblePhotos = locationFilter
+    ? photosNearby(photos, locationFilter.x, locationFilter.y, locationFilter.radius)
+    : photos
   const sentinelRef = useRef<HTMLDivElement>(null)
   const loadMoreRef = useRef(loadMore)
 
@@ -39,14 +44,14 @@ export function GalleryGrid() {
     return <div className={styles.error}>{error}</div>
   }
 
-  if (photos.length === 0) {
+  if (visiblePhotos.length === 0) {
     return <div className={styles.empty}>No photos found.</div>
   }
 
   return (
     <>
       <div className={styles.grid}>
-        {photos.map((photo) => (
+        {visiblePhotos.map((photo) => (
           <PhotoCard key={photo.id} photo={photo} />
         ))}
       </div>
