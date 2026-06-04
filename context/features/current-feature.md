@@ -1,30 +1,11 @@
-# Current Feature: Seed Script
+# Current Feature
 
 ## Status
-In Progress
+Not Started
 
 ## Goals
 
-- `backend/cmd/seed/main.go` binary wired to `make seed`
-- Config reads `MINIO_*`, `API_KEY` (required) + `API_URL`, `IMAGES_DIR` (optional with defaults); exits 1 listing all missing vars
-- `API_URL` and `IMAGES_DIR` added to `.env.example` under `# ── Seed ──` block
-- `internal/minio.Client.ObjectExists(ctx, photoID) (bool, error)` added (not on `Presigner` interface); `StatObject` under the hood; `TestObjectExists` skipped without `MINIO_ENDPOINT`
-- `uploadPhoto(ctx, existenceChecker, httpCl, apiURL, apiKey, photoID, imagePath) (skipped bool, err error)` — check existence → POST upload-link → read file → PUT with forwarded headers; 5-minute HTTP timeout
-- `main` globs `IMAGES_DIR/*.jpg`, calls `uploadPhoto` per file, logs skip/uploaded/error, prints summary, exits 1 on any error
-- `TestUploadPhoto_Skip` — existence stub returns true; asserts PUT never called
-- `TestUploadPhoto_Upload` — full POST→PUT round-trip against httptest servers; asserts bytes and headers forwarded
-- Both tests pass without live MinIO or backend
-- `go build ./...` and `go vet ./...` pass
-
 ## Notes
-
-- Spec: `context/specs/08-seed-script.md`
-- Working directory when invoked via `make seed` is `backend/` — default `IMAGES_DIR=../dataset/images` is relative to that
-- Seed does NOT call `internal/config.Load()` (requires `DB_PATH`) and does NOT open the SQLite database
-- `uploadPhoto` takes `existenceChecker` interface (one method) so tests can stub without live MinIO; `*minio.Client` satisfies it
-- Idempotency: `ObjectExists` uses `StatObject`; `"NoSuchKey"` error → `(false, nil)`, not an error
-- Per-photo errors are logged and counted; remaining photos continue; exit 1 only at end if any failed
-- Image filenames are UUIDs (bare UUID + `.jpg`) — strip `.jpg` to get `photoID`
 
 ## History
 
@@ -48,3 +29,6 @@ Implemented `GET /thumbnails/{photoId}?w={width}&dpr={dpr}&fmt={fmt}` in `intern
 
 ### metrics-endpoint
 Implemented `GET /metrics` returning JSON with `requests` and `thumbnails` sections. New `internal/metrics` package: `Collector` (fixed-bucket latency histogram, status split by 2xx/4xx/5xx, mutex-protected), `Middleware` (wraps `ResponseWriter` to capture status code), and `Snapshot` (derived fields: `requests_per_sec`, `error_rate`, `latency_mean_ms`, `latency_p50_ms`, `latency_p95_ms` — all `0.0` not NaN in zero state). `internal/handler/metrics.go` defines `ThumbSnapshot` + `MetricsHandler(col, func() ThumbSnapshot)` to avoid an import cycle (`thumb` already imports `handler`). Carry-forward in `thumb/service.go`: added `genBucketBoundsMs` histogram (`[numGenBuckets]atomic.Int64`), `genPercentileMs`, and `GenP95Ms` to `ThumbMetrics`. Middleware wired `CorrelationID → MetricsMiddleware → APIKeyAuth → mux` so all requests including 401s are counted. 7 collector/middleware unit tests + 2 handler tests; `go build ./...` and `go vet ./...` clean.
+
+### seed-script
+Implemented `backend/cmd/seed/main.go` (`make seed`). Reads `MINIO_*` + `API_KEY` (required) and `API_URL` / `IMAGES_DIR` (optional, with defaults) — does not use `internal/config`. Added `ObjectExists(ctx, photoID) (bool, error)` to `*minio.Client` using `StatObject` (`"NoSuchKey"` → `(false, nil)`). Core logic in `uploadPhoto(ctx, existenceChecker, httpCl, apiURL, apiKey, photoID, imagePath)`: UUID-validates the filename, checks existence, POSTs to `/photos/{id}/upload-link` with `X-API-Key`, reads file, PUTs bytes with all returned headers forwarded (5-min timeout). `main` globs `IMAGES_DIR/*.jpg`, counts uploaded/skipped/errors, prints summary, exits 1 on any error. Added `API_URL` and `IMAGES_DIR` to `.env.example`. 2 unit tests (`TestUploadPhoto_Skip`, `TestUploadPhoto_Upload`) pass without live services; `TestObjectExists` skipped without `MINIO_ENDPOINT`.
