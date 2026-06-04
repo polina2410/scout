@@ -1,0 +1,31 @@
+.layout {
+  --header-height: 56px;
+  --header-bg: #1a1a2e;
+  --header-padding-x: 24px;
+  --title-size: 20px;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+}
+
+.header {
+  background: var(--header-bg);
+  padding: 0 var(--header-padding-x);
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.title {
+  color: #fff;
+  font-size: var(--title-size);
+  font-weight: 600;
+  margin: 0;
+}
+
+.main {
+  flex: 1;
+  overflow-y: auto;
+}
