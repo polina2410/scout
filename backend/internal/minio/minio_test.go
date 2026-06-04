@@ -202,3 +202,44 @@ func TestPresignedPutURL_TTLTooLarge(t *testing.T) {
 		t.Fatal("expected error for TTL exceeding maxPutTTL, got nil")
 	}
 }
+
+func TestObjectExists(t *testing.T) {
+	c := skipIfNoMinIO(t)
+	ctx := context.Background()
+
+	// Non-existent object returns (false, nil).
+	exists, err := c.ObjectExists(ctx, "does-not-exist-"+randomSuffix())
+	if err != nil {
+		t.Fatalf("ObjectExists for non-existent: %v", err)
+	}
+	if exists {
+		t.Error("ObjectExists for non-existent returned true, want false")
+	}
+
+	// Upload a real object then verify it is found.
+	photoID := "test-exists-" + randomSuffix()
+	putURL, headers, _, err := c.PresignedPutURL(ctx, photoID, "image/jpeg", time.Minute)
+	if err != nil {
+		t.Fatalf("PresignedPutURL: %v", err)
+	}
+	putReq, _ := http.NewRequestWithContext(ctx, http.MethodPut, putURL, bytes.NewReader([]byte("test")))
+	for k, v := range headers {
+		putReq.Header.Set(k, v)
+	}
+	putResp, err := http.DefaultClient.Do(putReq)
+	if err != nil {
+		t.Fatalf("PUT: %v", err)
+	}
+	putResp.Body.Close()
+	if putResp.StatusCode != http.StatusOK {
+		t.Fatalf("PUT status = %d, want 200", putResp.StatusCode)
+	}
+
+	exists, err = c.ObjectExists(ctx, photoID)
+	if err != nil {
+		t.Fatalf("ObjectExists for uploaded: %v", err)
+	}
+	if !exists {
+		t.Error("ObjectExists for uploaded returned false, want true")
+	}
+}

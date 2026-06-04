@@ -1,11 +1,30 @@
-# Current Feature
+# Current Feature: Seed Script
 
 ## Status
-Not Started
+In Progress
 
 ## Goals
 
+- `backend/cmd/seed/main.go` binary wired to `make seed`
+- Config reads `MINIO_*`, `API_KEY` (required) + `API_URL`, `IMAGES_DIR` (optional with defaults); exits 1 listing all missing vars
+- `API_URL` and `IMAGES_DIR` added to `.env.example` under `# ── Seed ──` block
+- `internal/minio.Client.ObjectExists(ctx, photoID) (bool, error)` added (not on `Presigner` interface); `StatObject` under the hood; `TestObjectExists` skipped without `MINIO_ENDPOINT`
+- `uploadPhoto(ctx, existenceChecker, httpCl, apiURL, apiKey, photoID, imagePath) (skipped bool, err error)` — check existence → POST upload-link → read file → PUT with forwarded headers; 5-minute HTTP timeout
+- `main` globs `IMAGES_DIR/*.jpg`, calls `uploadPhoto` per file, logs skip/uploaded/error, prints summary, exits 1 on any error
+- `TestUploadPhoto_Skip` — existence stub returns true; asserts PUT never called
+- `TestUploadPhoto_Upload` — full POST→PUT round-trip against httptest servers; asserts bytes and headers forwarded
+- Both tests pass without live MinIO or backend
+- `go build ./...` and `go vet ./...` pass
+
 ## Notes
+
+- Spec: `context/specs/08-seed-script.md`
+- Working directory when invoked via `make seed` is `backend/` — default `IMAGES_DIR=../dataset/images` is relative to that
+- Seed does NOT call `internal/config.Load()` (requires `DB_PATH`) and does NOT open the SQLite database
+- `uploadPhoto` takes `existenceChecker` interface (one method) so tests can stub without live MinIO; `*minio.Client` satisfies it
+- Idempotency: `ObjectExists` uses `StatObject`; `"NoSuchKey"` error → `(false, nil)`, not an error
+- Per-photo errors are logged and counted; remaining photos continue; exit 1 only at end if any failed
+- Image filenames are UUIDs (bare UUID + `.jpg`) — strip `.jpg` to get `photoID`
 
 ## History
 

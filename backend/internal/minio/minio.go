@@ -119,6 +119,20 @@ func (c *Client) GetOriginal(ctx context.Context, photoID string) (io.ReadCloser
 	return obj, nil
 }
 
+// ObjectExists reports whether a photo's object is present in the bucket.
+// Returns (false, nil) when the object is absent — not an error.
+func (c *Client) ObjectExists(ctx context.Context, photoID string) (bool, error) {
+	_, err := c.mc.StatObject(ctx, c.bucket, ObjectKey(photoID), miniogo.StatObjectOptions{})
+	if err != nil {
+		resp := miniogo.ToErrorResponse(err)
+		if resp.Code == "NoSuchKey" {
+			return false, nil
+		}
+		return false, fmt.Errorf("stat object %q: %w", photoID, err)
+	}
+	return true, nil
+}
+
 // PresignedGetURL returns a fresh 1-hour presigned GET URL for the given photo.
 // reqParams are nil — no Content-Disposition or other query param overrides needed.
 func (c *Client) PresignedGetURL(ctx context.Context, photoID string) (string, error) {
