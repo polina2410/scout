@@ -19,7 +19,7 @@ dist/
 .vite/
 frontend/node_modules/
 frontend/dist/
-frontend/src/api/generated/
+# frontend/src/api/generated/ — schema.ts is committed; regenerate with: cd frontend && pnpm openapi-ts
 
 # ── Thumbnail cache ───────────────────────────────────────────────────────────
 /cache/
