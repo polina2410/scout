@@ -1,28 +1,11 @@
-# Current Feature: gallery-grid
+# Current Feature
 
 ## Status
-In Progress
+Not Started
 
 ## Goals
 
-- Implement `thumbnailUrl` / `thumbnailSrcSet` utility in `src/features/gallery/thumbnailUrl.ts` with `CARD_CSS_WIDTH = 240`
-- Implement `usePhotos` hook with `useReducer` for paginated fetching, reset-on-params-change, and `loadMore` support
-- Implement `PhotoCard` component with lazy `<img>`, `srcSet`, click-to-select dispatch, and `position: relative` wrapper ready for bbox overlay
-- Implement `GalleryGrid` component with loading / error / empty / success states, auto-fill grid layout, and `IntersectionObserver` infinite scroll sentinel
-- Wire `GalleryGrid` into `App.tsx` inside `<main>`
-- All new tests pass (`thumbnailUrl.test.ts` × 3, `GalleryGrid.test.tsx` × 4), no existing tests broken
-- `pnpm build`, `pnpm lint`, and `pnpm test` all pass clean
-
 ## Notes
-
-- Thumbnail URL: `${VITE_API_URL}/thumbnails/${photoId}?w=${cssWidth}&dpr=${dpr}&fmt=jpeg` — no module-level throw; `fmt` is always `jpeg` (WebP deferred pending CGO)
-- `usePhotos` must use `useReducer` to avoid stale closure issues; state shape: `{ photos, status, error, cursor }`
-- `status` values: `'loading'` | `'loading-more'` | `'success'` | `'error'` — existing photos preserved on `loadMore` error
-- `hasMore` is true only when last successful response contained `next_token`
-- `PhotoCard` `imageWrapper` uses `aspect-ratio: 16/9` — no `width`/`height` attrs on `<img>`
-- `IntersectionObserver` sentinel has `height: 1px`; do not test it in unit tests (jsdom limitation)
-- `PAGE_LIMIT = 20` constant in `usePhotos.ts`
-- Do not mock `IntersectionObserver` — skip that test coverage as specified
 
 ## History
 
@@ -55,3 +38,6 @@ Wired Redux Toolkit store with `filtersSlice` (`classId: ClassId | null`, `minCo
 
 ### api-client
 Implemented typed fetch layer in `src/api/`. `ApiError` class carries `status`, `code`, `message`, `requestId` from backend error body; module-level fail-fast throws if `VITE_API_URL` or `VITE_API_KEY` are unset. Internal `apiFetch<T>` attaches `X-API-Key` last in the header merge so it cannot be overridden by callers. `listPhotos(params?)` serialises cursor/limit/classId/minConfidence into query string (omits `minConfidence=0`); `getPhoto(photoId)` calls `GET /photos/{photoId}`. `AsyncState<T>` discriminated union (`idle | loading | success | error`) exported for component use. All shape types (`Photo`, `Prediction`, `BoundingBox`, `PhotoPage`, `ListPhotosParams`) are aliases of the generated schema — no hand-written API types. Barrel at `src/api/index.ts`; `schema.ts` never imported directly by consumers. 8 client tests (happy paths, 401/404/500, query string serialisation, header attachment) + `afterAll(() => vi.unstubAllEnvs())` cleanup. 19 total tests pass; `pnpm lint` and `pnpm build` clean.
+
+### gallery-grid
+Implemented scrolling paginated photo gallery. `thumbnailUrl`/`thumbnailSrcSet` utility (`CARD_CSS_WIDTH=240`, `fmt=jpeg`) builds `srcset` strings for 1×/2×/3× DPR. `usePhotos` hook uses `useReducer` for stale-closure-safe pagination: resets and refetches on `params` change, appends on `loadMore`, preserves existing photos on `loadMore` error, forwards `err.message` into state. `PhotoCard` renders lazy `<img>` with `srcSet`, dispatches `selectPhoto` on click, and is keyboard-accessible (`tabIndex`, `onKeyDown`, `:focus-visible`). `GalleryGrid` renders loading/error/empty/success states, auto-fill CSS grid (`minmax(240px,1fr)`), `IntersectionObserver` infinite-scroll sentinel (ref-stable via `useLayoutEffect`). `App.tsx` wired to render `GalleryGrid` in `<main>`. `IntersectionObserver` stubbed in `test-setup.ts`. 7 new tests (3 `thumbnailUrl` + 4 `GalleryGrid`); 26 total pass. `pnpm lint`, `pnpm build`, `pnpm test` all clean.
