@@ -1,4 +1,5 @@
 import { GalleryGrid } from './features/gallery/GalleryGrid'
+import { PhotoModal } from './features/gallery/PhotoModal'
 import { FilterBar } from './features/filters/FilterBar'
 import styles from './App.module.css'
 
@@ -12,6 +13,7 @@ export default function App() {
       <main className={styles.main}>
         <GalleryGrid />
       </main>
+      <PhotoModal />
     </div>
   )
 }
