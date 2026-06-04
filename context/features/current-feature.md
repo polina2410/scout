@@ -1,26 +1,11 @@
-# Current Feature: API Client
+# Current Feature
 
 ## Status
-In Progress
+Not Started
 
 ## Goals
 
-- Typed fetch wrapper using generated types from `src/api/generated/schema.ts`
-- `ApiError` class carrying status, code, message, and request ID
-- `listPhotos(params?)` and `getPhoto(photoId)` as the only exported functions
-- `AsyncState<T>` discriminated union for loading / error / empty / success states
-- Barrel export at `src/api/index.ts` — components never import `schema.ts` directly
-- 8 client tests covering happy paths, error shapes, header attachment, and query serialisation
-- `pnpm test`, `pnpm build`, and `pnpm lint` all pass
-
 ## Notes
-
-- `apiFetch` is internal — not exported from any file
-- Base URL from `import.meta.env.VITE_API_URL`; API key from `VITE_API_KEY` on every request as `X-API-Key`
-- `minConfidence: 0` omitted from query string (backend default)
-- Vite dev proxy already maps `/api/*` → backend, but the client uses `VITE_API_URL` directly (not the proxy path)
-- All shape types (`Photo`, `Prediction`, etc.) aliased from generated schema — no hand-written API types
-- Test env setup: stub `import.meta.env` via Vitest before each test; mock `globalThis.fetch` with `vi.stubGlobal`
 
 ## History
 
@@ -50,3 +35,6 @@ Implemented `backend/cmd/seed/main.go` (`make seed`). Reads `MINIO_*` + `API_KEY
 
 ### frontend-setup
 Wired Redux Toolkit store with `filtersSlice` (`classId: ClassId | null`, `minConfidence: number [0,1]` clamped, `resetFilters`) and `selectedPhotoSlice` (`photoId: string | null`, `selectPhoto`, `clearSelectedPhoto`). `ClassId` derived from `CLASS_IDS as const` tuple in `features/filters/types.ts` — not from generated schema. `store/index.ts` exports `RootState`/`AppDispatch`; `store/hooks.ts` uses RTK 2.x `withTypes` pattern for `useAppDispatch`/`useAppSelector`. `Provider` wired in `main.tsx`. Replaced Vite default `App.tsx` with Scout shell using CSS Modules (`App.module.css`) — CSS custom properties for layout tokens; `App.css` deleted; `index.css` stripped of class selectors. Added `globals: true` to vitest config (required by `@testing-library/jest-dom`). 11 pure reducer tests pass; `pnpm build` and `pnpm lint` clean.
+
+### api-client
+Implemented typed fetch layer in `src/api/`. `ApiError` class carries `status`, `code`, `message`, `requestId` from backend error body; module-level fail-fast throws if `VITE_API_URL` or `VITE_API_KEY` are unset. Internal `apiFetch<T>` attaches `X-API-Key` last in the header merge so it cannot be overridden by callers. `listPhotos(params?)` serialises cursor/limit/classId/minConfidence into query string (omits `minConfidence=0`); `getPhoto(photoId)` calls `GET /photos/{photoId}`. `AsyncState<T>` discriminated union (`idle | loading | success | error`) exported for component use. All shape types (`Photo`, `Prediction`, `BoundingBox`, `PhotoPage`, `ListPhotosParams`) are aliases of the generated schema — no hand-written API types. Barrel at `src/api/index.ts`; `schema.ts` never imported directly by consumers. 8 client tests (happy paths, 401/404/500, query string serialisation, header attachment) + `afterAll(() => vi.unstubAllEnvs())` cleanup. 19 total tests pass; `pnpm lint` and `pnpm build` clean.
