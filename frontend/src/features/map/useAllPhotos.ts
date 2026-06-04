@@ -24,14 +24,25 @@ export interface UseAllPhotosResult {
   status: 'loading' | 'success' | 'error'
 }
 
+async function fetchAllPhotos(): Promise<Photo[]> {
+  const all: Photo[] = []
+  let cursor: string | undefined
+  do {
+    const page = await listPhotos({ limit: 50, cursor })
+    all.push(...page.items)
+    cursor = page.next_token ?? undefined
+  } while (cursor)
+  return all
+}
+
 export function useAllPhotos(): UseAllPhotosResult {
   const [state, dispatch] = useReducer(reducer, initial)
 
   useEffect(() => {
     let cancelled = false
-    listPhotos({ limit: 50 })
-      .then((page) => {
-        if (!cancelled) dispatch({ type: 'SUCCESS', photos: page.items })
+    fetchAllPhotos()
+      .then((photos) => {
+        if (!cancelled) dispatch({ type: 'SUCCESS', photos })
       })
       .catch(() => {
         if (!cancelled) dispatch({ type: 'ERROR' })
