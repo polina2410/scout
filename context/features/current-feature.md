@@ -1,11 +1,28 @@
-# Current Feature
+# Current Feature: gallery-grid
 
 ## Status
-Not Started
+In Progress
 
 ## Goals
 
+- Implement `thumbnailUrl` / `thumbnailSrcSet` utility in `src/features/gallery/thumbnailUrl.ts` with `CARD_CSS_WIDTH = 240`
+- Implement `usePhotos` hook with `useReducer` for paginated fetching, reset-on-params-change, and `loadMore` support
+- Implement `PhotoCard` component with lazy `<img>`, `srcSet`, click-to-select dispatch, and `position: relative` wrapper ready for bbox overlay
+- Implement `GalleryGrid` component with loading / error / empty / success states, auto-fill grid layout, and `IntersectionObserver` infinite scroll sentinel
+- Wire `GalleryGrid` into `App.tsx` inside `<main>`
+- All new tests pass (`thumbnailUrl.test.ts` × 3, `GalleryGrid.test.tsx` × 4), no existing tests broken
+- `pnpm build`, `pnpm lint`, and `pnpm test` all pass clean
+
 ## Notes
+
+- Thumbnail URL: `${VITE_API_URL}/thumbnails/${photoId}?w=${cssWidth}&dpr=${dpr}&fmt=jpeg` — no module-level throw; `fmt` is always `jpeg` (WebP deferred pending CGO)
+- `usePhotos` must use `useReducer` to avoid stale closure issues; state shape: `{ photos, status, error, cursor }`
+- `status` values: `'loading'` | `'loading-more'` | `'success'` | `'error'` — existing photos preserved on `loadMore` error
+- `hasMore` is true only when last successful response contained `next_token`
+- `PhotoCard` `imageWrapper` uses `aspect-ratio: 16/9` — no `width`/`height` attrs on `<img>`
+- `IntersectionObserver` sentinel has `height: 1px`; do not test it in unit tests (jsdom limitation)
+- `PAGE_LIMIT = 20` constant in `usePhotos.ts`
+- Do not mock `IntersectionObserver` — skip that test coverage as specified
 
 ## History
 
