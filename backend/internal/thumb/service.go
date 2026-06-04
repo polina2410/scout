@@ -144,7 +144,11 @@ func (s *Service) Handle(w http.ResponseWriter, r *http.Request) {
 		default:
 			return nil, errAtCapacity
 		}
-		return s.generate(r.Context(), p)
+		// Use context.Background() so the generation is not cancelled when the
+		// originating HTTP connection closes. Every waiter sharing this singleflight
+		// key benefits from the result; tying it to one caller's context would
+		// poison all of them if that caller disconnects mid-generation.
+		return s.generate(context.Background(), p)
 	})
 
 	if err != nil {

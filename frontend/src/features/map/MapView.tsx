@@ -56,6 +56,13 @@ export function MapView(): React.ReactElement {
     setZoom(clamped)
   }
 
+  // Sync React state after a drag so that subsequent wheel-zoom and re-renders
+  // don't snap the stage back to its pre-drag position.
+  function handleDragEnd(e: KonvaEventObject<DragEvent>) {
+    setPanX(e.target.x())
+    setPanY(e.target.y())
+  }
+
   function handleStageClick(e: KonvaEventObject<MouseEvent>) {
     if (e.target !== e.target.getStage() && e.target.getClassName() !== 'Rect') return
     const stage = e.target.getStage()!
@@ -72,6 +79,7 @@ export function MapView(): React.ReactElement {
         height={CANVAS_SIZE_PX}
         draggable
         onWheel={handleWheel}
+        onDragEnd={handleDragEnd}
         onClick={handleStageClick}
         scaleX={zoom}
         scaleY={zoom}
