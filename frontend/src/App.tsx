@@ -1,3 +1,4 @@
+import { GalleryGrid } from './features/gallery/GalleryGrid'
 import styles from './App.module.css'
 
 export default function App() {
@@ -7,7 +8,7 @@ export default function App() {
         <h1 className={styles.title}>Scout</h1>
       </header>
       <main className={styles.main}>
-        {/* Gallery and map render here in later steps */}
+        <GalleryGrid />
       </main>
     </div>
   )

@@ -1,0 +1,38 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 48px 16px;
+  color: #888;
+}
+
+.error {
+  display: flex;
+  justify-content: center;
+  padding: 48px 16px;
+  color: #e05c5c;
+}
+
+.empty {
+  display: flex;
+  justify-content: center;
+  padding: 48px 16px;
+  color: #888;
+}
+
+.loadingMore {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  color: #888;
+}
+
+.sentinel {
+  height: 1px;
+}
