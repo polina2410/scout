@@ -16,4 +16,4 @@ test:
 	cd frontend && pnpm test
 
 seed:
-	cd backend && go run ./cmd/seed
+	cd backend && env $$(grep -v '^#' ../.env.local | grep -v '^$$' | xargs) go run ./cmd/seed
