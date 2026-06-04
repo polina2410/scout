@@ -1,11 +1,26 @@
-# Current Feature
+# Current Feature: API Client
 
 ## Status
-Not Started
+In Progress
 
 ## Goals
 
+- Typed fetch wrapper using generated types from `src/api/generated/schema.ts`
+- `ApiError` class carrying status, code, message, and request ID
+- `listPhotos(params?)` and `getPhoto(photoId)` as the only exported functions
+- `AsyncState<T>` discriminated union for loading / error / empty / success states
+- Barrel export at `src/api/index.ts` — components never import `schema.ts` directly
+- 8 client tests covering happy paths, error shapes, header attachment, and query serialisation
+- `pnpm test`, `pnpm build`, and `pnpm lint` all pass
+
 ## Notes
+
+- `apiFetch` is internal — not exported from any file
+- Base URL from `import.meta.env.VITE_API_URL`; API key from `VITE_API_KEY` on every request as `X-API-Key`
+- `minConfidence: 0` omitted from query string (backend default)
+- Vite dev proxy already maps `/api/*` → backend, but the client uses `VITE_API_URL` directly (not the proxy path)
+- All shape types (`Photo`, `Prediction`, etc.) aliased from generated schema — no hand-written API types
+- Test env setup: stub `import.meta.env` via Vitest before each test; mock `globalThis.fetch` with `vi.stubGlobal`
 
 ## History
 
