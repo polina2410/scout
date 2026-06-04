@@ -1,6 +1,7 @@
 import { useAppDispatch } from '../../store/hooks'
 import { selectPhoto } from './selectedPhotoSlice'
 import { thumbnailUrl, thumbnailSrcSet, CARD_CSS_WIDTH } from './thumbnailUrl'
+import { BboxCanvas } from './BboxCanvas'
 import type { Photo } from '../../api'
 import styles from './PhotoCard.module.css'
 
@@ -40,6 +41,7 @@ export function PhotoCard({ photo }: PhotoCardProps) {
           loading="lazy"
           decoding="async"
         />
+        <BboxCanvas predictions={photo.predictions} />
       </div>
     </article>
   )
