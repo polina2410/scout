@@ -1,30 +1,11 @@
-# Current Feature: Frontend Setup
+# Current Feature
 
 ## Status
-In Progress
+Not Started
 
 ## Goals
 
-- `src/features/filters/types.ts` — `CLASS_IDS as const` tuple + `ClassId` type
-- `src/features/filters/filtersSlice.ts` — `classId: ClassId | null`, `minConfidence: number [0,1]`; actions: `setClassId`, `setMinConfidence` (clamped), `resetFilters`
-- `src/features/gallery/selectedPhotoSlice.ts` — `photoId: string | null`; actions: `selectPhoto`, `clearSelectedPhoto`
-- `src/store/index.ts` — `configureStore` with both reducers; `RootState` + `AppDispatch` types
-- `src/store/hooks.ts` — `useAppDispatch` + `useAppSelector` typed wrappers
-- `src/main.tsx` — `<Provider store={store}>` wrapping `<App />`
-- `src/App.tsx` — replace Vite default with Scout shell (header + empty main); `src/App.module.css`; delete `src/App.css`
-- `src/index.css` — remove Vite class selectors; keep only element/`:root` rules
-- `src/features/filters/index.ts` + `src/features/gallery/index.ts` — re-export slice actions, types
-- 7 reducer tests for filters slice + 3 for selectedPhoto slice; call `reducer(undefined, action)` directly
-- `pnpm test`, `pnpm build`, `pnpm lint` all pass
-
 ## Notes
-
-- Spec: `context/specs/09-frontend-setup.md`
-- Do NOT redo: Vite scaffold, packages, codegen script, `schema.ts`, directory stubs, test infrastructure, `vite.config.ts` proxy
-- `ClassId` is local — generated `schema.ts` expresses `classId` as plain `string`
-- `minConfidence` clamped to `[0, 1]` inside the reducer (not the action creator)
-- Tests call reducer directly — no full store instantiation needed
-- CSS Modules only — no global class strings in `.tsx` files; `App.css` is deleted
 
 ## History
 
@@ -51,3 +32,6 @@ Implemented `GET /metrics` returning JSON with `requests` and `thumbnails` secti
 
 ### seed-script
 Implemented `backend/cmd/seed/main.go` (`make seed`). Reads `MINIO_*` + `API_KEY` (required) and `API_URL` / `IMAGES_DIR` (optional, with defaults) — does not use `internal/config`. Added `ObjectExists(ctx, photoID) (bool, error)` to `*minio.Client` using `StatObject` (`"NoSuchKey"` → `(false, nil)`). Core logic in `uploadPhoto(ctx, existenceChecker, httpCl, apiURL, apiKey, photoID, imagePath)`: UUID-validates the filename, checks existence, POSTs to `/photos/{id}/upload-link` with `X-API-Key`, reads file, PUTs bytes with all returned headers forwarded (5-min timeout). `main` globs `IMAGES_DIR/*.jpg`, counts uploaded/skipped/errors, prints summary, exits 1 on any error. Added `API_URL` and `IMAGES_DIR` to `.env.example`. 2 unit tests (`TestUploadPhoto_Skip`, `TestUploadPhoto_Upload`) pass without live services; `TestObjectExists` skipped without `MINIO_ENDPOINT`.
+
+### frontend-setup
+Wired Redux Toolkit store with `filtersSlice` (`classId: ClassId | null`, `minConfidence: number [0,1]` clamped, `resetFilters`) and `selectedPhotoSlice` (`photoId: string | null`, `selectPhoto`, `clearSelectedPhoto`). `ClassId` derived from `CLASS_IDS as const` tuple in `features/filters/types.ts` — not from generated schema. `store/index.ts` exports `RootState`/`AppDispatch`; `store/hooks.ts` uses RTK 2.x `withTypes` pattern for `useAppDispatch`/`useAppSelector`. `Provider` wired in `main.tsx`. Replaced Vite default `App.tsx` with Scout shell using CSS Modules (`App.module.css`) — CSS custom properties for layout tokens; `App.css` deleted; `index.css` stripped of class selectors. Added `globals: true` to vitest config (required by `@testing-library/jest-dom`). 11 pure reducer tests pass; `pnpm build` and `pnpm lint` clean.
