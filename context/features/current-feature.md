@@ -1,11 +1,30 @@
-# Current Feature
+# Current Feature: Frontend Setup
 
 ## Status
-Not Started
+In Progress
 
 ## Goals
 
+- `src/features/filters/types.ts` — `CLASS_IDS as const` tuple + `ClassId` type
+- `src/features/filters/filtersSlice.ts` — `classId: ClassId | null`, `minConfidence: number [0,1]`; actions: `setClassId`, `setMinConfidence` (clamped), `resetFilters`
+- `src/features/gallery/selectedPhotoSlice.ts` — `photoId: string | null`; actions: `selectPhoto`, `clearSelectedPhoto`
+- `src/store/index.ts` — `configureStore` with both reducers; `RootState` + `AppDispatch` types
+- `src/store/hooks.ts` — `useAppDispatch` + `useAppSelector` typed wrappers
+- `src/main.tsx` — `<Provider store={store}>` wrapping `<App />`
+- `src/App.tsx` — replace Vite default with Scout shell (header + empty main); `src/App.module.css`; delete `src/App.css`
+- `src/index.css` — remove Vite class selectors; keep only element/`:root` rules
+- `src/features/filters/index.ts` + `src/features/gallery/index.ts` — re-export slice actions, types
+- 7 reducer tests for filters slice + 3 for selectedPhoto slice; call `reducer(undefined, action)` directly
+- `pnpm test`, `pnpm build`, `pnpm lint` all pass
+
 ## Notes
+
+- Spec: `context/specs/09-frontend-setup.md`
+- Do NOT redo: Vite scaffold, packages, codegen script, `schema.ts`, directory stubs, test infrastructure, `vite.config.ts` proxy
+- `ClassId` is local — generated `schema.ts` expresses `classId` as plain `string`
+- `minConfidence` clamped to `[0, 1]` inside the reducer (not the action creator)
+- Tests call reducer directly — no full store instantiation needed
+- CSS Modules only — no global class strings in `.tsx` files; `App.css` is deleted
 
 ## History
 
