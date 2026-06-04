@@ -95,6 +95,7 @@ func main() {
 	h = middleware.APIKeyAuth(cfg.APIKey)(h)
 	h = metricspkg.Middleware(collector)(h)
 	h = middleware.CorrelationID(log)(h)
+	h = middleware.CORS(h)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
