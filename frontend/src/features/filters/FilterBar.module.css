@@ -1,0 +1,71 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: #111;
+  border-bottom: 1px solid #222;
+  flex-shrink: 0;
+}
+
+.classes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.classBtn {
+  padding: 4px 12px;
+  border-radius: 9999px;
+  border: 1px solid #444;
+  background: transparent;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 13px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.classBtn:hover {
+  border-color: #888;
+  color: #fff;
+}
+
+.classBtn.active {
+  border-color: var(--accent, #4a9eff);
+  background: color-mix(in srgb, var(--accent, #4a9eff) 15%, transparent);
+  color: #fff;
+}
+
+.confidence {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label {
+  font-size: 13px;
+  color: #ccc;
+  white-space: nowrap;
+  min-width: 11ch;
+}
+
+.slider {
+  width: 120px;
+  accent-color: #4a9eff;
+}
+
+.resetBtn {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid #555;
+  background: transparent;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.resetBtn:hover {
+  border-color: #888;
+  color: #fff;
+}

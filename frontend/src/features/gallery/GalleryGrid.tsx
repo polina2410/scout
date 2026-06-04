@@ -1,10 +1,15 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useAppSelector } from '../../store/hooks'
 import { usePhotos } from './usePhotos'
 import { PhotoCard } from './PhotoCard'
 import styles from './GalleryGrid.module.css'
 
 export function GalleryGrid() {
-  const { photos, status, error, loadMoreError, hasMore, loadMore } = usePhotos()
+  const classId = useAppSelector((s) => s.filters.classId)
+  const minConfidence = useAppSelector((s) => s.filters.minConfidence)
+  const { photos, status, error, loadMoreError, hasMore, loadMore } = usePhotos(
+    { classId: classId ?? undefined, minConfidence }
+  )
   const sentinelRef = useRef<HTMLDivElement>(null)
   const loadMoreRef = useRef(loadMore)
 
