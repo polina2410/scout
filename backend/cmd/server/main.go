@@ -75,7 +75,12 @@ func main() {
 	mux.HandleFunc("POST /photos/{photoId}/upload-link", app.CreateUploadLink)
 	mux.HandleFunc("GET /photos/{photoId}", app.GetPhoto)
 	mux.HandleFunc("GET /photos", app.ListPhotos)
-	mux.HandleFunc("GET /thumbnails/{photoId}", thumbSvc.Handle)
+	// Thumbnails bypass API-key auth (they're loaded directly by <img> tags), so
+	// a per-IP rate limiter is the only thing standing between an anonymous client
+	// and the 4-slot generation semaphore. Without it, one caller can keep the
+	// semaphore saturated and starve authenticated gallery users with 503s.
+	thumbLimiter := middleware.NewRateLimiter(cfg.ThumbRatePerSec, cfg.ThumbRateBurst)
+	mux.Handle("GET /thumbnails/{photoId}", thumbLimiter.Middleware(http.HandlerFunc(thumbSvc.Handle)))
 	mux.HandleFunc("GET /metrics", handler.MetricsHandler(collector, func() handler.ThumbSnapshot {
 		m := thumbSvc.Metrics()
 		entries, bytes := thumbCache.Stats()

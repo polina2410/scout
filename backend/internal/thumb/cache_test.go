@@ -87,6 +87,60 @@ func TestDiskCache_UpdateMovesToFront(t *testing.T) {
 	}
 }
 
+func TestDiskCache_WarmFromDisk(t *testing.T) {
+	dir := t.TempDir()
+
+	// First instance writes two entries to disk.
+	c1, err := NewDiskCache(dir, 1024)
+	if err != nil {
+		t.Fatalf("NewDiskCache c1: %v", err)
+	}
+	if err := c1.Put("a", []byte("aaaaaa")); err != nil {
+		t.Fatalf("Put a: %v", err)
+	}
+	if err := c1.Put("b", []byte("bbbbbb")); err != nil {
+		t.Fatalf("Put b: %v", err)
+	}
+
+	// A fresh instance over the same dir must see the entries as warm hits,
+	// not cold misses — that's the restart cold-start fix.
+	c2, err := NewDiskCache(dir, 1024)
+	if err != nil {
+		t.Fatalf("NewDiskCache c2: %v", err)
+	}
+	if entries, total := c2.Stats(); entries != 2 || total != 12 {
+		t.Errorf("warmed stats: got entries=%d total=%d, want 2 and 12", entries, total)
+	}
+	if data, ok := c2.Get("a"); !ok || string(data) != "aaaaaa" {
+		t.Errorf("warmed Get(a): got %q ok=%v, want \"aaaaaa\" true", data, ok)
+	}
+}
+
+func TestDiskCache_WarmEvictsOverCap(t *testing.T) {
+	dir := t.TempDir()
+
+	// Fill the dir under a generous cap...
+	c1, err := NewDiskCache(dir, 1024)
+	if err != nil {
+		t.Fatalf("NewDiskCache c1: %v", err)
+	}
+	if err := c1.Put("a", []byte("aaaaaa")); err != nil { // 6 bytes
+		t.Fatalf("Put a: %v", err)
+	}
+	if err := c1.Put("b", []byte("bbbbbb")); err != nil { // 6 bytes; total=12
+		t.Fatalf("Put b: %v", err)
+	}
+
+	// ...then reopen with a smaller cap that only fits one entry.
+	c2, err := NewDiskCache(dir, 10)
+	if err != nil {
+		t.Fatalf("NewDiskCache c2: %v", err)
+	}
+	if entries, total := c2.Stats(); entries != 1 || total != 6 {
+		t.Errorf("warmed-evicted stats: got entries=%d total=%d, want 1 and 6", entries, total)
+	}
+}
+
 func TestDiskCache_ConcurrentAccess(t *testing.T) {
 	c := newTestCache(t, 1024*1024)
 	var wg sync.WaitGroup

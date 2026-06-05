@@ -45,7 +45,16 @@ func (a *App) ListPhotos(w http.ResponseWriter, r *http.Request) {
 		minConfidence = v
 	}
 
+	// An empty classId means "no class filter"; only reject non-empty unknown values.
+	// Without this, an invalid class silently returns 0 photos instead of a 400,
+	// making frontend bugs hard to diagnose.
 	classID := db.ClassID(q.Get("classId"))
+	if classID != "" && !db.ValidClassID(classID) {
+		WriteValidationError(w, r, []ValidationDetail{
+			{Field: "classId", Issue: "must be one of the known detection classes"},
+		})
+		return
+	}
 
 	photos, nextCursor, err := a.DB.ListPhotos(r.Context(), db.ListParams{
 		Cursor:        cursor,

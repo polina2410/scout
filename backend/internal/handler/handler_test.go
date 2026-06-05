@@ -327,6 +327,27 @@ func TestListPhotos_Pagination(t *testing.T) {
 	}
 }
 
+func TestListPhotos_BadClassID(t *testing.T) {
+	srv := newTestServer(t, openTestDB(t), &mockPresigner{})
+
+	// An unknown class must be a 400, not a silent empty result set.
+	resp := get(t, srv, "/photos?classId=not_a_real_class")
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400", resp.StatusCode)
+	}
+	body := decodeJSON(t, resp)
+	if body["code"] != "ValidationError" {
+		t.Errorf("code: got %v, want ValidationError", body["code"])
+	}
+	details, ok := body["details"].([]any)
+	if !ok || len(details) == 0 {
+		t.Fatal("expected non-empty details array")
+	}
+	if d := details[0].(map[string]any); d["field"] != "classId" {
+		t.Errorf("details[0].field: got %v, want classId", d["field"])
+	}
+}
+
 func TestListPhotos_BadLimit(t *testing.T) {
 	srv := newTestServer(t, openTestDB(t), &mockPresigner{})
 

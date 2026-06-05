@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -35,11 +36,64 @@ func NewDiskCache(dir string, maxSize int64) (*DiskCache, error) {
 	if err := os.MkdirAll(abs, 0o755); err != nil {
 		return nil, err
 	}
-	return &DiskCache{
+	c := &DiskCache{
 		dir:     abs,
 		maxSize: maxSize,
 		index:   make(map[string]*cacheEntry),
-	}, nil
+	}
+	// Rebuild the LRU index from any thumbnails left on disk by a prior run so
+	// restarts don't treat a full cache directory as cold (every request a miss).
+	c.warm()
+	return c, nil
+}
+
+// warm scans the cache directory and repopulates the in-memory index from files
+// already on disk, so a restart reuses a warm cache instead of regenerating
+// everything. Files are ordered oldest-first by mtime so the most recently
+// written end up at the front of the LRU. Best-effort: a scan failure simply
+// leaves the cache cold rather than blocking startup.
+func (c *DiskCache) warm() {
+	entries, err := os.ReadDir(c.dir)
+	if err != nil {
+		return
+	}
+
+	type fileInfo struct {
+		name string
+		size int64
+		mod  int64
+	}
+	files := make([]fileInfo, 0, len(entries))
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue // file vanished between ReadDir and Info — skip it.
+		}
+		files = append(files, fileInfo{name: e.Name(), size: info.Size(), mod: info.ModTime().UnixNano()})
+	}
+
+	sort.Slice(files, func(i, j int) bool { return files[i].mod < files[j].mod })
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, f := range files {
+		e := &cacheEntry{key: f.name, size: f.size}
+		e.el = c.lru.PushFront(e)
+		c.index[f.name] = e
+		c.total += f.size
+	}
+	// A prior run may have used a larger cap; evict down to the current maxSize.
+	for c.total > c.maxSize && c.lru.Len() > 0 {
+		back := c.lru.Back()
+		victim := back.Value.(*cacheEntry)
+		c.lru.Remove(back)
+		c.total -= victim.size
+		delete(c.index, victim.key)
+		os.Remove(filepath.Join(c.dir, victim.key)) //nolint:errcheck
+	}
 }
 
 // safePath returns the resolved path for key within the cache directory.

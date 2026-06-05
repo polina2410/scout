@@ -40,6 +40,22 @@ type Photo struct {
 	Predictions []Prediction
 }
 
+// ValidClassIDs is the set of accepted class_id values.
+var ValidClassIDs = map[ClassID]struct{}{
+	ClassPowderyMildew: {},
+	ClassMirid:         {},
+	ClassWhiteflyAphid: {},
+	ClassMinerTuta:     {},
+	ClassThrips:        {},
+	ClassSpiderMites:   {},
+}
+
+// ValidClassID reports whether id is a known detection class.
+func ValidClassID(id ClassID) bool {
+	_, ok := ValidClassIDs[id]
+	return ok
+}
+
 // ListParams controls pagination and filtering for ListPhotos.
 type ListParams struct {
 	Cursor        string

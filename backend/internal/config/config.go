@@ -19,6 +19,8 @@ type Config struct {
 	MinIOBucket      string
 	MinIOUseSSL      bool
 	ThumbCacheSizeMB int64
+	ThumbRatePerSec  float64
+	ThumbRateBurst   float64
 	LogLevel         string
 }
 
@@ -66,10 +68,39 @@ func Load() (*Config, error) {
 		cfg.ThumbCacheSizeMB = v
 	}
 
+	// Per-IP rate limit for the unauthenticated /thumbnails endpoint. The burst
+	// is generous enough for a full gallery grid to load at once; the refill rate
+	// throttles sustained floods that would otherwise saturate the 4-slot
+	// generation semaphore.
+	ratePerSec, err := positiveFloatEnv("THUMB_RATE_PER_SEC", 30)
+	if err != nil {
+		return nil, err
+	}
+	cfg.ThumbRatePerSec = ratePerSec
+
+	burst, err := positiveFloatEnv("THUMB_RATE_BURST", 60)
+	if err != nil {
+		return nil, err
+	}
+	cfg.ThumbRateBurst = burst
+
 	cfg.LogLevel = strings.ToLower(os.Getenv("LOG_LEVEL"))
 	if cfg.LogLevel == "" {
 		cfg.LogLevel = "info"
 	}
 
 	return cfg, nil
+}
+
+// positiveFloatEnv reads name as a positive float, returning def when unset.
+func positiveFloatEnv(name string, def float64) (float64, error) {
+	raw := os.Getenv(name)
+	if raw == "" {
+		return def, nil
+	}
+	v, err := strconv.ParseFloat(raw, 64)
+	if err != nil || v <= 0 {
+		return 0, fmt.Errorf("%s must be a positive number, got %q", name, raw)
+	}
+	return v, nil
 }
