@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { clearSelectedPhoto } from './selectedPhotoSlice'
@@ -21,7 +21,7 @@ export function PhotoModal(): React.ReactElement {
   const previousFocusRef = useRef<Element | null>(null)
   const dialogRef = useFocusTrap<HTMLDivElement>(photoId !== null)
 
-  const close = () => dispatch(clearSelectedPhoto())
+  const close = useCallback(() => dispatch(clearSelectedPhoto()), [dispatch])
 
   useEffect(() => {
     if (photoId !== null) {
@@ -42,7 +42,7 @@ export function PhotoModal(): React.ReactElement {
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [photoId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [photoId, close])
 
   return (
     <AnimatePresence>
@@ -133,7 +133,7 @@ export function PhotoModal(): React.ReactElement {
                         <li key={i} className={styles.predItem}>
                           <span
                             className={styles.dot}
-                            style={{ background: CLASS_COLORS[pred.classId] ?? FALLBACK_COLOR }}
+                            style={{ '--dot-color': CLASS_COLORS[pred.classId] ?? FALLBACK_COLOR } as React.CSSProperties}
                           />
                           <span className={styles.predClass}>
                             {CLASS_LABEL[pred.classId as keyof typeof CLASS_LABEL] ?? pred.classId}

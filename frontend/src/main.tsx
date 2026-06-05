@@ -4,7 +4,7 @@ import { Provider } from 'react-redux'
 import { MotionConfig } from 'motion/react'
 import { store } from './store'
 import './index.css'
-import App from './App.tsx'
+import { App } from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

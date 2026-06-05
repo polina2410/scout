@@ -1,6 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit'
-import filtersReducer from '../features/filters/filtersSlice'
-import selectedPhotoReducer from '../features/gallery/selectedPhotoSlice'
+import { filtersReducer } from '../features/filters/filtersSlice'
+import { selectedPhotoReducer } from '../features/gallery/selectedPhotoSlice'
 
 export const store = configureStore({
   reducer: {

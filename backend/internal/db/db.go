@@ -15,6 +15,10 @@ import (
 const (
 	defaultPageLimit = 50
 	maxPageLimit     = 200 // matches openapi.yaml GET /photos limit.maximum
+	// maxQueryIDs caps how many photo IDs go into a single IN (...) clause.
+	// SQLite's default SQLITE_MAX_VARIABLE_NUMBER is 999; page limits keep us
+	// well under it, but we assert rather than rely on that invariant holding.
+	maxQueryIDs = 999
 )
 
 // ErrNotFound is returned by GetPhoto when the photo ID does not exist.
@@ -193,6 +197,9 @@ func (d *DB) predictionsForPhoto(ctx context.Context, photoID string) ([]Predict
 func (d *DB) predictionsForPhotos(ctx context.Context, ids []string) (map[string][]Prediction, error) {
 	if len(ids) == 0 {
 		return map[string][]Prediction{}, nil
+	}
+	if len(ids) > maxQueryIDs {
+		return nil, fmt.Errorf("too many photo ids for one query: %d (max %d)", len(ids), maxQueryIDs)
 	}
 
 	placeholders := strings.Repeat("?,", len(ids))

@@ -3,7 +3,12 @@ import { Stage, Layer, Circle, Line, Rect } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectPhoto } from '../gallery/selectedPhotoSlice'
-import { setLocationFilter, setLocationRadius, clearLocationFilter } from '../filters/filtersSlice'
+import {
+  setLocationFilter,
+  setLocationRadius,
+  clearLocationFilter,
+  DEFAULT_LOCATION_RADIUS_M,
+} from '../filters/filtersSlice'
 import { CLASS_COLORS, FALLBACK_COLOR } from '../gallery/bboxUtils'
 import { describePredictions } from '../gallery/predictionSummary'
 import { useAllPhotos } from './useAllPhotos'
@@ -16,6 +21,12 @@ import a11y from '../../styles/a11y.module.css'
 const GRID_STEP_M = 5
 const MIN_MAP_PX = 240 // floor so the canvas stays usable on the smallest phones
 const DOT_RADIUS_PX = 6
+
+// Wheel-zoom: each notch multiplies/divides the zoom by ZOOM_STEP, clamped so
+// the floor plan can't be zoomed past these bounds.
+const ZOOM_STEP = 1.1
+const ZOOM_MIN = 0.5
+const ZOOM_MAX = 8
 
 function dotColor(photo: Photo): string {
   if (photo.predictions.length === 0) return '#555'
@@ -35,7 +46,7 @@ export function MapView(): React.ReactElement {
   const classId = useAppSelector((s) => s.filters.classId)
   const minConfidence = useAppSelector((s) => s.filters.minConfidence)
   const locationFilter = useAppSelector((s) => s.filters.locationFilter)
-  const { photos } = useAllPhotos()
+  const { photos, status } = useAllPhotos()
 
   // The map is a square sized to the available width (capped at the design size),
   // so it scales down on tablet/mobile instead of overflowing. scale (px per
@@ -59,11 +70,10 @@ export function MapView(): React.ReactElement {
 
   function handleWheel(e: KonvaEventObject<WheelEvent>) {
     e.evt.preventDefault()
-    const scaleBy = 1.1
     const stage = e.target.getStage()!
     const pointer = stage.getPointerPosition()!
-    const newZoom = e.evt.deltaY < 0 ? zoom * scaleBy : zoom / scaleBy
-    const clamped = Math.min(Math.max(newZoom, 0.5), 8)
+    const newZoom = e.evt.deltaY < 0 ? zoom * ZOOM_STEP : zoom / ZOOM_STEP
+    const clamped = Math.min(Math.max(newZoom, ZOOM_MIN), ZOOM_MAX)
     const mousePointTo = { x: (pointer.x - panX) / zoom, y: (pointer.y - panY) / zoom }
     setPanX(pointer.x - mousePointTo.x * clamped)
     setPanY(pointer.y - mousePointTo.y * clamped)
@@ -159,6 +169,16 @@ export function MapView(): React.ReactElement {
             })}
           </Layer>
         </Stage>
+        {status === 'loading' && (
+          <div className={styles.statusOverlay} role="status">
+            Loading map…
+          </div>
+        )}
+        {status === 'error' && (
+          <div className={`${styles.statusOverlay} ${styles.statusError}`} role="alert">
+            Couldn’t load the map.
+          </div>
+        )}
       </div>
       <ul className={a11y.srOnly} aria-label="Photos on the greenhouse map">
         {photos.map((photo) => (
@@ -171,7 +191,7 @@ export function MapView(): React.ReactElement {
       </ul>
       <div className={styles.controls}>
         <label htmlFor="radius-slider" className={styles.label}>
-          Radius: {locationFilter?.radius ?? 5} m
+          Radius: {locationFilter?.radius ?? DEFAULT_LOCATION_RADIUS_M} m
         </label>
         <input
           id="radius-slider"
@@ -179,8 +199,8 @@ export function MapView(): React.ReactElement {
           min={1}
           max={20}
           step={1}
-          value={locationFilter?.radius ?? 5}
-          aria-valuetext={`${locationFilter?.radius ?? 5} meters`}
+          value={locationFilter?.radius ?? DEFAULT_LOCATION_RADIUS_M}
+          aria-valuetext={`${locationFilter?.radius ?? DEFAULT_LOCATION_RADIUS_M} meters`}
           aria-describedby={locationFilter ? undefined : 'radius-hint'}
           onChange={(e) => dispatch(setLocationRadius(Number(e.target.value)))}
           className={styles.slider}

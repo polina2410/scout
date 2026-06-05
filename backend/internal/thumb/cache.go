@@ -145,7 +145,33 @@ func (c *DiskCache) Put(key string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+
+	// Write to a temp file in the same directory, then atomically rename it into
+	// place. This ensures a concurrent Get never reads a half-written file, and
+	// two concurrent Puts for the same key can't interleave partial writes — the
+	// last rename wins cleanly. (Singleflight makes this rare, but the cache must
+	// be correct even if a caller bypasses it.)
+	tmp, err := os.CreateTemp(c.dir, ".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()        //nolint:errcheck
+		os.Remove(tmpName) //nolint:errcheck
+		return err
+	}
+	if err := tmp.Chmod(0o644); err != nil {
+		tmp.Close()        //nolint:errcheck
+		os.Remove(tmpName) //nolint:errcheck
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName) //nolint:errcheck
+		return err
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		os.Remove(tmpName) //nolint:errcheck
 		return err
 	}
 

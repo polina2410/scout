@@ -5,7 +5,7 @@ import { MapView } from './features/map/MapView'
 import styles from './App.module.css'
 import a11y from './styles/a11y.module.css'
 
-export default function App() {
+export function App() {
   return (
     <div className={styles.layout}>
       <header className={styles.header}>

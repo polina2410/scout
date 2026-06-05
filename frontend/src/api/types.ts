@@ -8,9 +8,3 @@ export type PhotoPage = components['schemas']['PhotoPage']
 export type ListPhotosParams = NonNullable<
   operations['listPhotos']['parameters']['query']
 >
-
-export type AsyncState<T> =
-  | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'success'; data: T }
-  | { status: 'error'; message: string }

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -30,21 +31,25 @@ type tokenBucket struct {
 // generation semaphore, which an unthrottled client could otherwise keep
 // saturated, starving legitimate gallery users with 503s.
 type RateLimiter struct {
-	mu      sync.Mutex
-	buckets map[string]*tokenBucket
-	rate    float64 // tokens refilled per second
-	burst   float64 // maximum tokens, and the initial allowance
-	now     func() time.Time
+	mu         sync.Mutex
+	buckets    map[string]*tokenBucket
+	rate       float64 // tokens refilled per second
+	burst      float64 // maximum tokens, and the initial allowance
+	trustProxy bool    // honor X-Forwarded-For / X-Real-IP for the client IP
+	now        func() time.Time
 }
 
 // NewRateLimiter creates a limiter allowing burst requests immediately and
-// refilling at ratePerSec tokens/second per client IP.
-func NewRateLimiter(ratePerSec, burst float64) *RateLimiter {
+// refilling at ratePerSec tokens/second per client IP. When trustProxy is true
+// the client IP is read from proxy forwarding headers (only safe behind a
+// trusted reverse proxy); otherwise it is the direct connection's RemoteAddr.
+func NewRateLimiter(ratePerSec, burst float64, trustProxy bool) *RateLimiter {
 	return &RateLimiter{
-		buckets: make(map[string]*tokenBucket),
-		rate:    ratePerSec,
-		burst:   burst,
-		now:     time.Now,
+		buckets:    make(map[string]*tokenBucket),
+		rate:       ratePerSec,
+		burst:      burst,
+		trustProxy: trustProxy,
+		now:        time.Now,
 	}
 }
 
@@ -85,7 +90,7 @@ func (rl *RateLimiter) evictStale(now time.Time) {
 // Middleware enforces the per-client rate limit, returning 429 when exceeded.
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !rl.allow(clientIP(r)) {
+		if !rl.allow(rl.clientIP(r)) {
 			writeTooManyRequests(w, r)
 			return
 		}
@@ -93,9 +98,23 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-// clientIP returns the remote IP without the port, falling back to the raw
-// RemoteAddr if it can't be split.
-func clientIP(r *http.Request) string {
+// clientIP determines the rate-limit key for a request. Behind a trusted proxy
+// it prefers the left-most X-Forwarded-For entry (the original client), then
+// X-Real-IP; otherwise — and as a fallback — it uses the direct connection's
+// RemoteAddr without its port.
+func (rl *RateLimiter) clientIP(r *http.Request) string {
+	if rl.trustProxy {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			// The list is "client, proxy1, proxy2"; the first entry is the origin.
+			first := strings.TrimSpace(strings.SplitN(xff, ",", 2)[0])
+			if first != "" {
+				return first
+			}
+		}
+		if xrip := strings.TrimSpace(r.Header.Get("X-Real-IP")); xrip != "" {
+			return xrip
+		}
+	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr

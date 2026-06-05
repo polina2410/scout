@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import reducer, { selectPhoto, clearSelectedPhoto } from './selectedPhotoSlice'
+import { selectedPhotoReducer as reducer, selectPhoto, clearSelectedPhoto } from './selectedPhotoSlice'
 
 describe('selectedPhotoSlice', () => {
   it('has correct initial state', () => {

@@ -8,7 +8,7 @@ import (
 )
 
 func TestRateLimiter_AllowsBurstThenBlocks(t *testing.T) {
-	rl := NewRateLimiter(1, 3) // 3 burst, refill 1/sec
+	rl := NewRateLimiter(1, 3, false) // 3 burst, refill 1/sec
 	now := time.Unix(0, 0)
 	rl.now = func() time.Time { return now }
 
@@ -23,7 +23,7 @@ func TestRateLimiter_AllowsBurstThenBlocks(t *testing.T) {
 }
 
 func TestRateLimiter_RefillsOverTime(t *testing.T) {
-	rl := NewRateLimiter(1, 1) // 1 burst, refill 1/sec
+	rl := NewRateLimiter(1, 1, false) // 1 burst, refill 1/sec
 	now := time.Unix(0, 0)
 	rl.now = func() time.Time { return now }
 
@@ -41,7 +41,7 @@ func TestRateLimiter_RefillsOverTime(t *testing.T) {
 }
 
 func TestRateLimiter_IsolatesClients(t *testing.T) {
-	rl := NewRateLimiter(1, 1)
+	rl := NewRateLimiter(1, 1, false)
 	now := time.Unix(0, 0)
 	rl.now = func() time.Time { return now }
 
@@ -54,8 +54,39 @@ func TestRateLimiter_IsolatesClients(t *testing.T) {
 	}
 }
 
+func TestRateLimiter_ClientIP(t *testing.T) {
+	t.Run("ignores proxy headers when untrusted", func(t *testing.T) {
+		rl := NewRateLimiter(1, 1, false)
+		req := httptest.NewRequest(http.MethodGet, "/thumbnails/x", nil)
+		req.RemoteAddr = "10.0.0.1:5000"
+		req.Header.Set("X-Forwarded-For", "1.2.3.4")
+		if got := rl.clientIP(req); got != "10.0.0.1" {
+			t.Errorf("untrusted: got %q, want direct RemoteAddr 10.0.0.1", got)
+		}
+	})
+
+	t.Run("uses leftmost X-Forwarded-For when trusted", func(t *testing.T) {
+		rl := NewRateLimiter(1, 1, true)
+		req := httptest.NewRequest(http.MethodGet, "/thumbnails/x", nil)
+		req.RemoteAddr = "10.0.0.1:5000"
+		req.Header.Set("X-Forwarded-For", "1.2.3.4, 10.0.0.1")
+		if got := rl.clientIP(req); got != "1.2.3.4" {
+			t.Errorf("trusted: got %q, want origin client 1.2.3.4", got)
+		}
+	})
+
+	t.Run("falls back to RemoteAddr when trusted but no headers", func(t *testing.T) {
+		rl := NewRateLimiter(1, 1, true)
+		req := httptest.NewRequest(http.MethodGet, "/thumbnails/x", nil)
+		req.RemoteAddr = "10.0.0.1:5000"
+		if got := rl.clientIP(req); got != "10.0.0.1" {
+			t.Errorf("trusted no-header: got %q, want 10.0.0.1", got)
+		}
+	})
+}
+
 func TestRateLimiter_Middleware429(t *testing.T) {
-	rl := NewRateLimiter(1, 1)
+	rl := NewRateLimiter(1, 1, false)
 	now := time.Unix(0, 0)
 	rl.now = func() time.Time { return now }
 

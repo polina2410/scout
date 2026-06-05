@@ -52,7 +52,10 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export async function listPhotos(params?: ListPhotosParams): Promise<PhotoPage> {
+export async function listPhotos(
+  params?: ListPhotosParams,
+  signal?: AbortSignal,
+): Promise<PhotoPage> {
   const qs = new URLSearchParams()
   if (params) {
     if (params.cursor !== undefined) qs.set('cursor', params.cursor)
@@ -63,7 +66,7 @@ export async function listPhotos(params?: ListPhotosParams): Promise<PhotoPage> 
     }
   }
   const query = qs.toString()
-  return apiFetch<PhotoPage>(`/photos${query ? `?${query}` : ''}`)
+  return apiFetch<PhotoPage>(`/photos${query ? `?${query}` : ''}`, { signal })
 }
 
 export async function getPhoto(photoId: string): Promise<Photo> {

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -10,8 +11,8 @@ import (
 )
 
 const (
-	defaultLimit  = 50
-	maxLimit      = 200
+	defaultLimit   = 50
+	maxLimit       = 200
 	presignWorkers = 10
 )
 
@@ -97,6 +98,12 @@ func (a *App) presignAll(r *http.Request, photos []db.Photo) (map[string]string,
 		return map[string]string{}, nil
 	}
 
+	// Derive a cancellable context from the request so that a client disconnect
+	// or the first presign failure stops in-flight workers promptly, instead of
+	// leaving them to run their MinIO calls to completion on results no one reads.
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
 	type result struct {
 		id  string
 		url string
@@ -113,8 +120,13 @@ func (a *App) presignAll(r *http.Request, photos []db.Photo) (map[string]string,
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			sem <- struct{}{}
-			url, err := a.Store.PresignedGetURL(r.Context(), ph.ID)
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				results <- result{id: ph.ID, err: ctx.Err()}
+				return
+			}
+			url, err := a.Store.PresignedGetURL(ctx, ph.ID)
 			<-sem
 			results <- result{id: ph.ID, url: url, err: err}
 		}()
@@ -125,6 +137,9 @@ func (a *App) presignAll(r *http.Request, photos []db.Photo) (map[string]string,
 	urlMap := make(map[string]string, len(photos))
 	for res := range results {
 		if res.err != nil {
+			// Cancel the remaining workers; the buffered channel and the waiter
+			// goroutine above ensure they all drain without blocking or leaking.
+			cancel()
 			return nil, res.err
 		}
 		urlMap[res.id] = res.url

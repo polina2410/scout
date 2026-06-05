@@ -23,4 +23,4 @@ const selectedPhotoSlice = createSlice({
 })
 
 export const { selectPhoto, clearSelectedPhoto } = selectedPhotoSlice.actions
-export default selectedPhotoSlice.reducer
+export const selectedPhotoReducer = selectedPhotoSlice.reducer

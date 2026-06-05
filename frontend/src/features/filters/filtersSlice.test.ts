@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import reducer, { setClassId, setMinConfidence, resetFilters } from './filtersSlice'
+import { filtersReducer as reducer, setClassId, setMinConfidence, resetFilters } from './filtersSlice'
 
 describe('filtersSlice', () => {
   it('has correct initial state', () => {

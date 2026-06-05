@@ -19,19 +19,25 @@ function reducer(_state: State, action: Action): State {
 
 const initial: State = { status: 'loading', photos: [] }
 
+// Bound the eager full-dataset fetch so a misbehaving cursor (or an unexpectedly
+// large dataset) can never trigger an unbounded request loop for the map view.
+const PAGE_SIZE = 50
+const MAX_PAGES = 20
+
 export interface UseAllPhotosResult {
   photos: Photo[]
   status: 'loading' | 'success' | 'error'
 }
 
-async function fetchAllPhotos(): Promise<Photo[]> {
+async function fetchAllPhotos(signal: AbortSignal): Promise<Photo[]> {
   const all: Photo[] = []
   let cursor: string | undefined
-  do {
-    const page = await listPhotos({ limit: 50, cursor })
-    all.push(...page.items)
-    cursor = page.next_token ?? undefined
-  } while (cursor)
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const result = await listPhotos({ limit: PAGE_SIZE, cursor }, signal)
+    all.push(...result.items)
+    cursor = result.next_token ?? undefined
+    if (!cursor) break
+  }
   return all
 }
 
@@ -39,15 +45,16 @@ export function useAllPhotos(): UseAllPhotosResult {
   const [state, dispatch] = useReducer(reducer, initial)
 
   useEffect(() => {
-    let cancelled = false
-    fetchAllPhotos()
+    const controller = new AbortController()
+    fetchAllPhotos(controller.signal)
       .then((photos) => {
-        if (!cancelled) dispatch({ type: 'SUCCESS', photos })
+        if (!controller.signal.aborted) dispatch({ type: 'SUCCESS', photos })
       })
       .catch(() => {
-        if (!cancelled) dispatch({ type: 'ERROR' })
+        // An abort (unmount) is expected cleanup, not a user-facing error.
+        if (!controller.signal.aborted) dispatch({ type: 'ERROR' })
       })
-    return () => { cancelled = true }
+    return () => controller.abort()
   }, [])
 
   return state

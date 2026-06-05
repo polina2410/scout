@@ -10,18 +10,19 @@ import (
 // Config holds all runtime configuration for the server.
 // All fields are populated by Load(); callers must treat it as read-only.
 type Config struct {
-	Port             string
-	APIKey           string
-	DBPath           string
-	MinIOEndpoint    string
-	MinIOAccessKey   string
-	MinIOSecretKey   string
-	MinIOBucket      string
-	MinIOUseSSL      bool
-	ThumbCacheSizeMB int64
-	ThumbRatePerSec  float64
-	ThumbRateBurst   float64
-	LogLevel         string
+	Port              string
+	APIKey            string
+	DBPath            string
+	MinIOEndpoint     string
+	MinIOAccessKey    string
+	MinIOSecretKey    string
+	MinIOBucket       string
+	MinIOUseSSL       bool
+	ThumbCacheSizeMB  int64
+	ThumbRatePerSec   float64
+	ThumbRateBurst    float64
+	TrustProxyHeaders bool
+	LogLevel          string
 }
 
 // Load reads environment variables and returns a populated Config.
@@ -83,6 +84,13 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	cfg.ThumbRateBurst = burst
+
+	// Only trust X-Forwarded-For / X-Real-IP when the server is knowingly run
+	// behind a trusted reverse proxy. Trusting them otherwise lets any client
+	// spoof its IP and defeat the per-IP rate limiter; ignoring them when behind
+	// a proxy collapses every client onto the proxy's single bucket. Operators
+	// must opt in for their deployment topology.
+	cfg.TrustProxyHeaders = strings.EqualFold(os.Getenv("TRUST_PROXY_HEADERS"), "true")
 
 	cfg.LogLevel = strings.ToLower(os.Getenv("LOG_LEVEL"))
 	if cfg.LogLevel == "" {

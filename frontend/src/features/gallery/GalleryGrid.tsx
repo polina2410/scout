@@ -9,6 +9,13 @@ import a11y from '../../styles/a11y.module.css'
 
 const FADE = { duration: 0.18 } as const
 
+// Card entrance animation. Cards stagger in, but the delay is capped and the
+// index wraps so a large page doesn't produce an ever-growing lag on later cards.
+const CARD_FADE_DURATION_S = 0.22
+const STAGGER_WRAP = 20 // restart the stagger every N cards
+const STAGGER_MAX_STEPS = 8 // cap the per-card delay at this many steps
+const STAGGER_STEP_S = 0.04 // delay added per stagger step
+
 export function GalleryGrid() {
   const classId = useAppSelector((s) => s.filters.classId)
   const minConfidence = useAppSelector((s) => s.filters.minConfidence)
@@ -93,7 +100,10 @@ export function GalleryGrid() {
               key={photo.id}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.22, delay: Math.min(index % 20, 8) * 0.04 }}
+              transition={{
+                duration: CARD_FADE_DURATION_S,
+                delay: Math.min(index % STAGGER_WRAP, STAGGER_MAX_STEPS) * STAGGER_STEP_S,
+              }}
             >
               <PhotoCard photo={photo} />
             </motion.div>
