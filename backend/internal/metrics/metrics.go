@@ -4,6 +4,7 @@ import (
 	"math"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -11,14 +12,17 @@ var bucketBoundsMs = [...]int64{1, 5, 10, 25, 50, 100, 250, 500, 1000}
 
 const numBuckets = len(bucketBoundsMs) + 1
 
-// Collector aggregates per-request metrics.
+// Collector aggregates per-request metrics. The scalar counters are atomics so
+// the hot Observe path stays lock-free; the mutex guards only the histogram
+// buckets, which have no atomic array equivalent.
 type Collector struct {
-	mu        sync.Mutex
-	total     int64
-	total2xx  int64
-	total4xx  int64
-	total5xx  int64
-	totalNs   int64
+	total    atomic.Int64
+	total2xx atomic.Int64
+	total4xx atomic.Int64
+	total5xx atomic.Int64
+	totalNs  atomic.Int64
+
+	mu        sync.Mutex // guards buckets only
 	buckets   [numBuckets]int64
 	startTime time.Time
 }
@@ -30,19 +34,16 @@ func NewCollector() *Collector {
 
 // Observe records one request with the given duration (in milliseconds) and HTTP status code.
 func (c *Collector) Observe(durationMs int64, statusCode int) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.total++
+	c.total.Add(1)
 	switch statusCode / 100 {
 	case 2:
-		c.total2xx++
+		c.total2xx.Add(1)
 	case 4:
-		c.total4xx++
+		c.total4xx.Add(1)
 	case 5:
-		c.total5xx++
+		c.total5xx.Add(1)
 	}
-	c.totalNs += durationMs * int64(time.Millisecond)
+	c.totalNs.Add(durationMs * int64(time.Millisecond))
 
 	idx := numBuckets - 1
 	for i, bound := range bucketBoundsMs {
@@ -51,7 +52,9 @@ func (c *Collector) Observe(durationMs int64, statusCode int) {
 			break
 		}
 	}
+	c.mu.Lock()
 	c.buckets[idx]++
+	c.mu.Unlock()
 }
 
 // Snapshot is a point-in-time view of collected request metrics.
@@ -70,41 +73,55 @@ type Snapshot struct {
 
 // Snapshot returns a point-in-time copy of the collected metrics with derived fields computed.
 func (c *Collector) Snapshot() Snapshot {
+	total := c.total.Load()
+	total2xx := c.total2xx.Load()
+	total4xx := c.total4xx.Load()
+	total5xx := c.total5xx.Load()
+	totalNs := c.totalNs.Load()
+
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	buckets := c.buckets
+	c.mu.Unlock()
 
 	uptime := time.Since(c.startTime).Seconds()
 
 	var rps float64
 	if uptime > 0 {
-		rps = float64(c.total) / uptime
+		rps = float64(total) / uptime
 	}
 
 	var errorRate float64
-	if c.total > 0 {
-		errorRate = float64(c.total5xx) / float64(c.total)
+	if total > 0 {
+		errorRate = float64(total5xx) / float64(total)
 	}
 
 	var meanMs float64
-	if c.total > 0 {
-		meanMs = float64(c.totalNs) / float64(c.total) / float64(time.Millisecond)
+	if total > 0 {
+		meanMs = float64(totalNs) / float64(total) / float64(time.Millisecond)
 	}
 
 	return Snapshot{
-		Total:          c.total,
-		Total2xx:       c.total2xx,
-		Total4xx:       c.total4xx,
-		Total5xx:       c.total5xx,
+		Total:          total,
+		Total2xx:       total2xx,
+		Total4xx:       total4xx,
+		Total5xx:       total5xx,
 		UptimeSec:      uptime,
 		RequestsPerSec: rps,
 		ErrorRate:      errorRate,
 		LatencyMeanMs:  meanMs,
-		LatencyP50Ms:   percentileMs(c.buckets, c.total, 0.50),
-		LatencyP95Ms:   percentileMs(c.buckets, c.total, 0.95),
+		LatencyP50Ms:   percentileMs(buckets, 0.50),
+		LatencyP95Ms:   percentileMs(buckets, 0.95),
 	}
 }
 
-func percentileMs(buckets [numBuckets]int64, total int64, p float64) float64 {
+// percentileMs derives its total from the buckets themselves so the result is
+// always self-consistent, even if the atomic request counter has raced ahead of
+// a not-yet-recorded bucket increment.
+func percentileMs(buckets [numBuckets]int64, p float64) float64 {
+	var total int64
+	for _, count := range buckets {
+		total += count
+	}
 	if total == 0 {
 		return 0
 	}

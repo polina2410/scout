@@ -10,6 +10,10 @@ import (
 	"sync"
 )
 
+// tmpPrefix marks in-progress cache writes so they can be skipped on load and
+// never collide with a real cache key (keys never start with a dot).
+const tmpPrefix = ".tmp-"
+
 // DiskCache is a thread-safe, size-bounded LRU disk cache.
 // Entries are files on disk; an in-memory index tracks sizes for eviction.
 type DiskCache struct {
@@ -68,6 +72,11 @@ func (c *DiskCache) warm() {
 		if e.IsDir() {
 			continue
 		}
+		// Skip temp files left behind by an interrupted Put; they are not valid
+		// cache entries and would otherwise be indexed under a bogus key.
+		if strings.HasPrefix(e.Name(), tmpPrefix) {
+			continue
+		}
 		info, err := e.Info()
 		if err != nil {
 			continue // file vanished between ReadDir and Info — skip it.
@@ -97,13 +106,14 @@ func (c *DiskCache) warm() {
 }
 
 // safePath returns the resolved path for key within the cache directory.
-// Returns an error if the key would escape the cache dir (path traversal guard).
+// Valid keys are flat filenames ({photoId}_{w}_{dpr}_{fmt}); rejecting any key
+// that isn't its own base name (a path separator, "." or "..") keeps it from
+// escaping the cache dir without depending on filesystem case-sensitivity.
 func (c *DiskCache) safePath(key string) (string, error) {
-	p := filepath.Join(c.dir, filepath.Clean(key))
-	if !strings.HasPrefix(p, c.dir+string(filepath.Separator)) && p != c.dir {
-		return "", fmt.Errorf("cache key %q escapes cache directory", key)
+	if key == "" || key == "." || key == ".." || key != filepath.Base(key) || strings.Contains(key, "..") {
+		return "", fmt.Errorf("invalid cache key %q", key)
 	}
-	return p, nil
+	return filepath.Join(c.dir, key), nil
 }
 
 // Get returns the cached bytes for key and true, or nil, false on a miss.
@@ -151,7 +161,7 @@ func (c *DiskCache) Put(key string, data []byte) error {
 	// two concurrent Puts for the same key can't interleave partial writes — the
 	// last rename wins cleanly. (Singleflight makes this rare, but the cache must
 	// be correct even if a caller bypasses it.)
-	tmp, err := os.CreateTemp(c.dir, ".tmp-*")
+	tmp, err := os.CreateTemp(c.dir, tmpPrefix+"*")
 	if err != nil {
 		return err
 	}

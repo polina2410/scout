@@ -129,8 +129,11 @@ export function PhotoModal(): React.ReactElement {
                     <p className={styles.noDetections}>No detections.</p>
                   ) : (
                     <ul className={styles.predList}>
-                      {photo.predictions.map((pred, i) => (
-                        <li key={i} className={styles.predItem}>
+                      {photo.predictions.map((pred) => (
+                        <li
+                          key={`${pred.classId}-${pred.confidence}-${pred.bbox.xMin}-${pred.bbox.yMin}`}
+                          className={styles.predItem}
+                        >
                           <span
                             className={styles.dot}
                             style={{ '--dot-color': CLASS_COLORS[pred.classId] ?? FALLBACK_COLOR } as React.CSSProperties}
