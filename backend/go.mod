@@ -3,6 +3,7 @@ module github.com/polina2410/scout/backend
 go 1.25.0
 
 require (
+	github.com/chai2010/webp v1.4.0
 	github.com/google/uuid v1.6.0
 	github.com/minio/minio-go/v7 v7.2.0
 	golang.org/x/image v0.41.0
@@ -12,7 +13,6 @@ require (
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/chai2010/webp v1.4.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.11 // indirect

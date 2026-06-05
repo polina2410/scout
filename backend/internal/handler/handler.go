@@ -9,16 +9,16 @@ import (
 )
 
 // Error codes match the openapi.yaml enum values exactly.
-// Codes for statuses not in the openapi contract (409, 422, 503) use descriptive strings.
+// Codes for statuses not in the openapi contract (429, 503) use descriptive strings.
+// Note: 401 and 429 are also emitted as string literals from the middleware
+// package (auth.go, ratelimit.go), which cannot import handler without a cycle.
 const (
-	ErrCodeValidation          = "ValidationError"        // 400 — matches openapi.yaml ValidationError.code enum
-	ErrCodeUnauthorized        = "AuthenticationRequired"  // 401 — matches openapi.yaml AuthenticationError.code enum
-	ErrCodeNotFound            = "NotFound"                // 404 — matches openapi.yaml NotFoundError.code enum
-	ErrCodeConflict            = "Conflict"                // 409 — not in openapi contract
-	ErrCodeUnprocessableEntity = "UnprocessableEntity"     // 422 — not in openapi contract
-	ErrCodeTooManyRequests     = "TooManyRequests"         // 429 — not in openapi contract
-	ErrCodeInternal            = "InternalServerError"     // 500 — matches openapi.yaml InternalServerError.code enum
-	ErrCodeServiceUnavailable  = "ServiceUnavailable"      // 503 — not in openapi contract (thumbnail semaphore)
+	ErrCodeValidation         = "ValidationError"        // 400 — matches openapi.yaml ValidationError.code enum
+	ErrCodeUnauthorized       = "AuthenticationRequired" // 401 — matches openapi.yaml AuthenticationError.code enum
+	ErrCodeNotFound           = "NotFound"               // 404 — matches openapi.yaml NotFoundError.code enum
+	ErrCodeTooManyRequests    = "TooManyRequests"        // 429 — not in openapi contract (thumbnail rate limit)
+	ErrCodeInternal           = "InternalServerError"    // 500 — matches openapi.yaml InternalServerError.code enum
+	ErrCodeServiceUnavailable = "ServiceUnavailable"     // 503 — not in openapi contract (thumbnail semaphore)
 )
 
 // ErrorResponse is the JSON body returned for all non-2xx responses.
