@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Stage, Layer, Circle, Line, Rect } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
@@ -7,19 +7,15 @@ import { setLocationFilter, setLocationRadius, clearLocationFilter } from '../fi
 import { CLASS_COLORS, FALLBACK_COLOR } from '../gallery/bboxUtils'
 import { describePredictions } from '../gallery/predictionSummary'
 import { useAllPhotos } from './useAllPhotos'
+import { useElementWidth } from './useElementWidth'
 import { metersToCanvas, canvasToMeters, FLOOR_SIZE_M, CANVAS_SIZE_PX } from './mapUtils'
 import type { Photo } from '../../api'
 import styles from './MapView.module.css'
 import a11y from '../../styles/a11y.module.css'
 
-const SCALE = CANVAS_SIZE_PX / FLOOR_SIZE_M // 10 px/m
 const GRID_STEP_M = 5
-const GRID_STEP_PX = GRID_STEP_M * SCALE
-
-const GRID_LINES = Array.from(
-  { length: Math.floor(FLOOR_SIZE_M / GRID_STEP_M) - 1 },
-  (_, i) => (i + 1) * GRID_STEP_PX,
-)
+const MIN_MAP_PX = 240 // floor so the canvas stays usable on the smallest phones
+const DOT_RADIUS_PX = 6
 
 function dotColor(photo: Photo): string {
   if (photo.predictions.length === 0) return '#555'
@@ -40,6 +36,22 @@ export function MapView(): React.ReactElement {
   const minConfidence = useAppSelector((s) => s.filters.minConfidence)
   const locationFilter = useAppSelector((s) => s.filters.locationFilter)
   const { photos } = useAllPhotos()
+
+  // The map is a square sized to the available width (capped at the design size),
+  // so it scales down on tablet/mobile instead of overflowing. scale (px per
+  // meter) is derived from the rendered size so all geometry stays consistent.
+  const [stageWrapRef, wrapWidth] = useElementWidth<HTMLDivElement>(CANVAS_SIZE_PX)
+  const size = Math.max(MIN_MAP_PX, Math.min(CANVAS_SIZE_PX, wrapWidth))
+  const scale = size / FLOOR_SIZE_M
+
+  const gridLines = useMemo(
+    () =>
+      Array.from(
+        { length: Math.floor(FLOOR_SIZE_M / GRID_STEP_M) - 1 },
+        (_, i) => (i + 1) * GRID_STEP_M * scale,
+      ),
+    [scale],
+  )
 
   const [zoom, setZoom] = useState(1)
   const [panX, setPanX] = useState(0)
@@ -69,7 +81,7 @@ export function MapView(): React.ReactElement {
     if (e.target !== e.target.getStage() && e.target.getClassName() !== 'Rect') return
     const stage = e.target.getStage()!
     const pos = stage.getRelativePointerPosition()!
-    const { x, y } = canvasToMeters(pos.x, pos.y, SCALE)
+    const { x, y } = canvasToMeters(pos.x, pos.y, scale)
     dispatch(setLocationFilter({ x, y }))
   }
 
@@ -79,78 +91,74 @@ export function MapView(): React.ReactElement {
       {/* The Konva canvas is mouse-only; role="img" gives screen readers a
           summary and the visually-hidden list below is the keyboard/SR path. */}
       <div
+        ref={stageWrapRef}
+        className={styles.stageWrap}
         role="img"
         aria-label={`Greenhouse floor map, ${photos.length} photos plotted`}
       >
-      <Stage
-        width={CANVAS_SIZE_PX}
-        height={CANVAS_SIZE_PX}
-        draggable
-        onWheel={handleWheel}
-        onDragEnd={handleDragEnd}
-        onClick={handleStageClick}
-        scaleX={zoom}
-        scaleY={zoom}
-        x={panX}
-        y={panY}
-        className={styles.stage}
-      >
-        <Layer>
-          {/* floor background */}
-          <Rect
-            x={0}
-            y={0}
-            width={CANVAS_SIZE_PX}
-            height={CANVAS_SIZE_PX}
-            fill="#0a0a0a"
-          />
-          {/* grid lines */}
-          {GRID_LINES.flatMap((pos) => [
-            <Line
-              key={`h${pos}`}
-              points={[0, pos, CANVAS_SIZE_PX, pos]}
-              stroke="#1e1e1e"
-              strokeWidth={1}
-              listening={false}
-            />,
-            <Line
-              key={`v${pos}`}
-              points={[pos, 0, pos, CANVAS_SIZE_PX]}
-              stroke="#1e1e1e"
-              strokeWidth={1}
-              listening={false}
-            />,
-          ])}
-          {/* location filter circle */}
-          {locationFilter && (
-            <Circle
-              x={metersToCanvas(locationFilter.x, locationFilter.y, SCALE).cx}
-              y={metersToCanvas(locationFilter.x, locationFilter.y, SCALE).cy}
-              radius={locationFilter.radius * SCALE}
-              stroke="#4a9eff"
-              strokeWidth={1}
-              dash={[4, 4]}
-              fill="rgba(74,158,255,0.06)"
-              listening={false}
-            />
-          )}
-          {/* photo dots */}
-          {photos.map((photo) => {
-            const { cx, cy } = metersToCanvas(photo.x, photo.y, SCALE)
-            return (
+        <Stage
+          width={size}
+          height={size}
+          draggable
+          onWheel={handleWheel}
+          onDragEnd={handleDragEnd}
+          onClick={handleStageClick}
+          scaleX={zoom}
+          scaleY={zoom}
+          x={panX}
+          y={panY}
+          className={styles.stage}
+        >
+          <Layer>
+            {/* floor background */}
+            <Rect x={0} y={0} width={size} height={size} fill="#0a0a0a" />
+            {/* grid lines */}
+            {gridLines.flatMap((pos) => [
+              <Line
+                key={`h${pos}`}
+                points={[0, pos, size, pos]}
+                stroke="#1e1e1e"
+                strokeWidth={1}
+                listening={false}
+              />,
+              <Line
+                key={`v${pos}`}
+                points={[pos, 0, pos, size]}
+                stroke="#1e1e1e"
+                strokeWidth={1}
+                listening={false}
+              />,
+            ])}
+            {/* location filter circle */}
+            {locationFilter && (
               <Circle
-                key={photo.id}
-                x={cx}
-                y={cy}
-                radius={6}
-                fill={dotColor(photo)}
-                opacity={matchesFilter(photo, classId, minConfidence) ? 1 : 0.2}
-                onClick={() => dispatch(selectPhoto(photo.id))}
+                x={metersToCanvas(locationFilter.x, locationFilter.y, scale).cx}
+                y={metersToCanvas(locationFilter.x, locationFilter.y, scale).cy}
+                radius={locationFilter.radius * scale}
+                stroke="#4a9eff"
+                strokeWidth={1}
+                dash={[4, 4]}
+                fill="rgba(74,158,255,0.06)"
+                listening={false}
               />
-            )
-          })}
-        </Layer>
-      </Stage>
+            )}
+            {/* photo dots */}
+            {photos.map((photo) => {
+              const { cx, cy } = metersToCanvas(photo.x, photo.y, scale)
+              return (
+                <Circle
+                  key={photo.id}
+                  x={cx}
+                  y={cy}
+                  radius={DOT_RADIUS_PX}
+                  fill={dotColor(photo)}
+                  opacity={matchesFilter(photo, classId, minConfidence) ? 1 : 0.2}
+                  onClick={() => dispatch(selectPhoto(photo.id))}
+                />
+              )
+            })}
+          </Layer>
+        </Stage>
       </div>
       <ul className={a11y.srOnly} aria-label="Photos on the greenhouse map">
         {photos.map((photo) => (

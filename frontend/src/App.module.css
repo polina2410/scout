@@ -36,3 +36,25 @@
   flex: 1;
   overflow-y: auto;
 }
+
+/* Tablet & below: stack map over gallery and let the whole page scroll
+   instead of scrolling each pane independently. */
+@media (max-width: 900px) {
+  .content {
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .main {
+    overflow-y: visible;
+  }
+}
+
+/* Mobile: tighten the header chrome. */
+@media (max-width: 600px) {
+  .layout {
+    --header-height: 48px;
+    --header-padding-x: 16px;
+    --title-size: 18px;
+  }
+}

@@ -76,3 +76,21 @@
   border-color: #888;
   color: #fff;
 }
+
+/* Mobile: let the confidence control take a full row so the slider isn't
+   squeezed once the class pills wrap. */
+@media (max-width: 600px) {
+  .bar {
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .confidence {
+    width: 100%;
+  }
+
+  .slider {
+    flex: 1;
+    width: auto;
+  }
+}

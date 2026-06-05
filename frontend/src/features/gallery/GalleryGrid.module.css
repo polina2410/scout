@@ -43,3 +43,12 @@
 .sentinel {
   height: 1px;
 }
+
+/* Mobile: smaller minimum card so phones still get two columns. */
+@media (max-width: 600px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+    padding: 12px;
+  }
+}
