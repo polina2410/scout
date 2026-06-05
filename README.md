@@ -118,4 +118,4 @@ See `.env.example` for the full list. Key variables:
 | `VITE_API_URL` | frontend | Backend base URL — must match where the backend is running |
 | `VITE_API_KEY` | frontend | Must equal `API_KEY` |
 
-Optional backend tuning (sensible defaults, override only if needed): `THUMB_CACHE_SIZE_MB` (disk cache cap, default 500), `THUMB_RATE_PER_SEC` / `THUMB_RATE_BURST` (per-IP rate limit on `/thumbnails`, default 30/60).
+Optional backend tuning (sensible defaults, override only if needed): `THUMB_CACHE_SIZE_MB` (disk cache cap, default 500), `THUMB_RATE_PER_SEC` / `THUMB_RATE_BURST` (per-IP rate limit on `/thumbnails`, default 30/60), `TRUST_PROXY_HEADERS` (set to `true` only when running behind a trusted reverse proxy — enables reading client IP from `X-Forwarded-For` / `X-Real-IP` for the rate limiter; default `false`).
