@@ -19,7 +19,7 @@
 .title {
   font-size: 12px;
   font-weight: 600;
-  color: #888;
+  color: #999;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0;
@@ -39,7 +39,7 @@
 
 .label {
   font-size: 12px;
-  color: #888;
+  color: #999;
   white-space: nowrap;
   min-width: 9ch;
 }

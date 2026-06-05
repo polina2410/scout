@@ -180,10 +180,17 @@ export function MapView(): React.ReactElement {
           max={20}
           step={1}
           value={locationFilter?.radius ?? 5}
+          aria-valuetext={`${locationFilter?.radius ?? 5} meters`}
+          aria-describedby={locationFilter ? undefined : 'radius-hint'}
           onChange={(e) => dispatch(setLocationRadius(Number(e.target.value)))}
           className={styles.slider}
           disabled={!locationFilter}
         />
+        {!locationFilter && (
+          <span id="radius-hint" className={a11y.srOnly}>
+            Select a photo from the list or click the map to set a location, then adjust the radius.
+          </span>
+        )}
         {locationFilter && (
           <button className={styles.clearBtn} onClick={() => dispatch(clearLocationFilter())}>
             Clear

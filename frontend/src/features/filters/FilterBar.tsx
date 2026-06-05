@@ -45,6 +45,7 @@ export function FilterBar(): React.ReactElement {
           max={100}
           step={1}
           value={Math.round(minConfidence * 100)}
+          aria-valuetext={`${Math.round(minConfidence * 100)} percent`}
           onChange={(e) => dispatch(setMinConfidence(Number(e.target.value) / 100))}
           className={styles.slider}
         />

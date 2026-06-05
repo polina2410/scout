@@ -32,6 +32,15 @@
   outline-offset: 2px;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .card:hover,
+  .card:active {
+    transform: none;
+    transition: box-shadow 0.18s ease;
+  }
+}
+
 .imageWrapper {
   position: relative;
   aspect-ratio: 16 / 9;

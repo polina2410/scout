@@ -3,6 +3,7 @@ import { PhotoModal } from './features/gallery/PhotoModal'
 import { FilterBar } from './features/filters/FilterBar'
 import { MapView } from './features/map/MapView'
 import styles from './App.module.css'
+import a11y from './styles/a11y.module.css'
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
       <div className={styles.content}>
         <MapView />
         <main className={styles.main}>
+          <h2 className={a11y.srOnly}>Photo gallery</h2>
           <GalleryGrid />
         </main>
       </div>

@@ -92,7 +92,7 @@
 
 .noDetections {
   font-size: 13px;
-  color: #666;
+  color: #999;
 }
 
 .predList {
@@ -124,7 +124,7 @@
 }
 
 .predConf {
-  color: #888;
+  color: #999;
   font-variant-numeric: tabular-nums;
 }
 
@@ -135,7 +135,7 @@
   justify-content: center;
   width: 100%;
   padding: 48px;
-  color: #888;
+  color: #999;
 }
 
 .error {
