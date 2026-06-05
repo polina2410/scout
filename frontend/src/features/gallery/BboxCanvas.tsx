@@ -45,5 +45,8 @@ export function BboxCanvas({ predictions }: BboxCanvasProps): React.ReactElement
     return () => observer.disconnect()
   }, [predictions])
 
-  return <canvas ref={canvasRef} className={styles.canvas} />
+  // Decorative: the bounding boxes are a visual overlay. The same detection
+  // data is exposed as real text to assistive tech via the PhotoCard button's
+  // aria-label and the PhotoModal sidebar, so this canvas is hidden from AT.
+  return <canvas ref={canvasRef} className={styles.canvas} aria-hidden="true" />
 }

@@ -3,12 +3,15 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { clearSelectedPhoto } from './selectedPhotoSlice'
 import { usePhotoDetail } from './usePhotoDetail'
+import { useFocusTrap } from './useFocusTrap'
 import { BboxCanvas } from './BboxCanvas'
 import { CLASS_COLORS, FALLBACK_COLOR } from './bboxUtils'
 import { CLASS_LABEL } from '../filters/classLabels'
 import styles from './PhotoModal.module.css'
+import a11y from '../../styles/a11y.module.css'
 
 const SPRING = { duration: 0.25, ease: [0.16, 1, 0.3, 1] } as const
+const TITLE_ID = 'photo-modal-title'
 
 export function PhotoModal(): React.ReactElement {
   const dispatch = useAppDispatch()
@@ -16,6 +19,7 @@ export function PhotoModal(): React.ReactElement {
   const { photo, status, error } = usePhotoDetail(photoId)
   const closeBtnRef = useRef<HTMLButtonElement>(null)
   const previousFocusRef = useRef<Element | null>(null)
+  const dialogRef = useFocusTrap<HTMLDivElement>(photoId !== null)
 
   const close = () => dispatch(clearSelectedPhoto())
 
@@ -52,9 +56,10 @@ export function PhotoModal(): React.ReactElement {
           onClick={close}
         >
           <motion.div
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Photo detail"
+            aria-labelledby={TITLE_ID}
             className={styles.dialog}
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -62,6 +67,10 @@ export function PhotoModal(): React.ReactElement {
             transition={SPRING}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Stable accessible name for the dialog, present in every state
+                (the visible "Detections" heading only renders on success). */}
+            <h2 id={TITLE_ID} className={a11y.srOnly}>Photo detail</h2>
+
             <button
               ref={closeBtnRef}
               className={styles.closeBtn}
@@ -74,6 +83,7 @@ export function PhotoModal(): React.ReactElement {
             {status === 'loading' && (
               <motion.div
                 className={styles.loading}
+                role="status"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
               >
@@ -84,6 +94,7 @@ export function PhotoModal(): React.ReactElement {
             {status === 'error' && (
               <motion.div
                 className={styles.error}
+                role="alert"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
               >
@@ -98,11 +109,15 @@ export function PhotoModal(): React.ReactElement {
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.2, delay: 0.05 }}
               >
+                <div className={a11y.srOnly} role="status">
+                  Photo loaded with {photo.predictions.length} detection
+                  {photo.predictions.length === 1 ? '' : 's'}
+                </div>
                 <div className={styles.imageSection}>
                   <div className={styles.imageWrapper}>
                     <img
                       src={photo.originalUrl}
-                      alt={`Photo ${photo.id}`}
+                      alt="Full-size greenhouse camera photo"
                       className={styles.image}
                     />
                     <BboxCanvas predictions={photo.predictions} />

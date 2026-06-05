@@ -12,8 +12,8 @@ export function FilterBar(): React.ReactElement {
   const isFiltered = classId !== null || minConfidence > 0
 
   return (
-    <div className={styles.bar}>
-      <div className={styles.classes}>
+    <div className={styles.bar} role="search" aria-label="Photo filters">
+      <div className={styles.classes} role="group" aria-label="Filter by detection class">
         <button
           className={`${styles.classBtn} ${classId === null ? styles.active : ''}`}
           aria-pressed={classId === null}

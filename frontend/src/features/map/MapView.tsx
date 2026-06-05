@@ -5,10 +5,12 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectPhoto } from '../gallery/selectedPhotoSlice'
 import { setLocationFilter, setLocationRadius, clearLocationFilter } from '../filters/filtersSlice'
 import { CLASS_COLORS, FALLBACK_COLOR } from '../gallery/bboxUtils'
+import { describePredictions } from '../gallery/predictionSummary'
 import { useAllPhotos } from './useAllPhotos'
 import { metersToCanvas, canvasToMeters, FLOOR_SIZE_M, CANVAS_SIZE_PX } from './mapUtils'
 import type { Photo } from '../../api'
 import styles from './MapView.module.css'
+import a11y from '../../styles/a11y.module.css'
 
 const SCALE = CANVAS_SIZE_PX / FLOOR_SIZE_M // 10 px/m
 const GRID_STEP_M = 5
@@ -72,8 +74,14 @@ export function MapView(): React.ReactElement {
   }
 
   return (
-    <div className={styles.container}>
-      <p className={styles.title}>Greenhouse Floor</p>
+    <aside className={styles.container} aria-label="Greenhouse map">
+      <h2 className={styles.title}>Greenhouse Floor</h2>
+      {/* The Konva canvas is mouse-only; role="img" gives screen readers a
+          summary and the visually-hidden list below is the keyboard/SR path. */}
+      <div
+        role="img"
+        aria-label={`Greenhouse floor map, ${photos.length} photos plotted`}
+      >
       <Stage
         width={CANVAS_SIZE_PX}
         height={CANVAS_SIZE_PX}
@@ -143,6 +151,16 @@ export function MapView(): React.ReactElement {
           })}
         </Layer>
       </Stage>
+      </div>
+      <ul className={a11y.srOnly} aria-label="Photos on the greenhouse map">
+        {photos.map((photo) => (
+          <li key={photo.id}>
+            <button type="button" onClick={() => dispatch(selectPhoto(photo.id))}>
+              {`Photo at ${Math.round(photo.x)}m, ${Math.round(photo.y)}m — ${describePredictions(photo.predictions)}. View details.`}
+            </button>
+          </li>
+        ))}
+      </ul>
       <div className={styles.controls}>
         <label htmlFor="radius-slider" className={styles.label}>
           Radius: {locationFilter?.radius ?? 5} m
@@ -164,6 +182,6 @@ export function MapView(): React.ReactElement {
           </button>
         )}
       </div>
-    </div>
+    </aside>
   )
 }

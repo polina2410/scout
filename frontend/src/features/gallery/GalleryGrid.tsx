@@ -5,6 +5,7 @@ import { usePhotos } from './usePhotos'
 import { PhotoCard } from './PhotoCard'
 import { photosNearby } from '../map/mapUtils'
 import styles from './GalleryGrid.module.css'
+import a11y from '../../styles/a11y.module.css'
 
 const FADE = { duration: 0.18 } as const
 
@@ -42,6 +43,7 @@ export function GalleryGrid() {
     return (
       <motion.div
         className={styles.loading}
+        role="status"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={FADE}
@@ -55,6 +57,7 @@ export function GalleryGrid() {
     return (
       <motion.div
         className={styles.error}
+        role="alert"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={FADE}
@@ -68,6 +71,7 @@ export function GalleryGrid() {
     return (
       <motion.div
         className={styles.empty}
+        role="status"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={FADE}
@@ -79,6 +83,9 @@ export function GalleryGrid() {
 
   return (
     <>
+      <div className={a11y.srOnly} role="status">
+        {visiblePhotos.length} photo{visiblePhotos.length === 1 ? '' : 's'} shown
+      </div>
       <div className={styles.grid}>
         <AnimatePresence initial={false}>
           {visiblePhotos.map((photo, index) => (
@@ -94,7 +101,7 @@ export function GalleryGrid() {
         </AnimatePresence>
       </div>
       {status === 'loading-more' && (
-        <div className={styles.loadingMore}>Loading more…</div>
+        <div className={styles.loadingMore} role="status">Loading more…</div>
       )}
       {loadMoreError && (
         <div className={styles.loadMoreError}>{loadMoreError}</div>

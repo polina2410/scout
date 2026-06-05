@@ -31,6 +31,13 @@
   color: #fff;
 }
 
+.classBtn:focus-visible,
+.resetBtn:focus-visible,
+.slider:focus-visible {
+  outline: 2px solid #4a9eff;
+  outline-offset: 2px;
+}
+
 .classBtn.active {
   border-color: var(--accent, #4a9eff);
   background: color-mix(in srgb, var(--accent, #4a9eff) 15%, transparent);

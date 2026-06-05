@@ -2,6 +2,7 @@ import { useAppDispatch } from '../../store/hooks'
 import { selectPhoto } from './selectedPhotoSlice'
 import { thumbnailUrl, thumbnailSrcSet, CARD_CSS_WIDTH } from './thumbnailUrl'
 import { BboxCanvas } from './BboxCanvas'
+import { describePredictions } from './predictionSummary'
 import type { Photo } from '../../api'
 import styles from './PhotoCard.module.css'
 
@@ -16,33 +17,26 @@ export function PhotoCard({ photo }: PhotoCardProps) {
     dispatch(selectPhoto(photo.id))
   }
 
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      dispatch(selectPhoto(photo.id))
-    }
-  }
-
+  // Native <button> gives keyboard activation (Enter/Space), focus, and the
+  // button role for free — no manual onKeyDown / tabIndex / role needed.
   return (
-    <article
+    <button
+      type="button"
       className={styles.card}
       onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-      role="button"
-      aria-label={`View photo ${photo.id}`}
+      aria-label={`Greenhouse photo, ${describePredictions(photo.predictions)}. View details.`}
     >
       <div className={styles.imageWrapper}>
         <img
           src={thumbnailUrl(photo.id, CARD_CSS_WIDTH, 1)}
           srcSet={thumbnailSrcSet(photo.id, CARD_CSS_WIDTH)}
-          alt={`Photo ${photo.id}`}
+          alt=""
           className={styles.image}
           loading="lazy"
           decoding="async"
         />
         <BboxCanvas predictions={photo.predictions} />
       </div>
-    </article>
+    </button>
   )
 }
