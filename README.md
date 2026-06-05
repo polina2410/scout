@@ -4,7 +4,7 @@ Greenhouse pest and disease monitoring. Cameras produce 2560×1440 JPEGs; a CV m
 
 ## What's built
 
-- **Go backend** — REST API (`GET /photos`, `GET /photos/{id}`, `POST /photos/{id}/upload-link`), on-demand thumbnail engine with singleflight coalescing + disk LRU cache, structured logging, correlation IDs, `/metrics` endpoint
+- **Go backend** — REST API (`GET /photos`, `GET /photos/{id}`, `POST /photos/{id}/upload-link`), on-demand thumbnail engine with singleflight coalescing, disk LRU cache that survives restarts, per-IP rate limiting, structured logging, correlation IDs, `/metrics` endpoint
 - **React + Vite frontend** — scrolling paginated gallery with per-card bbox overlays (canvas, DPR-aware), class/confidence filter bar, full-size photo modal, zoomable Konva greenhouse floor map with radius-based location filter
 - **MinIO** — S3-compatible object storage, run locally via Docker Compose
 
@@ -39,38 +39,22 @@ MinIO S3 API: `http://localhost:9000` · Console: `http://localhost:9001` (minio
 
 ### 3. Start the backend
 
-Load env vars, then run the server. **Run from the repo root** so that `DB_PATH=../dataset/predictions.db` resolves correctly.
+From the repo root:
 
-**macOS / Linux:**
 ```sh
-set -a && source .env.local && set +a
-cd backend && go run ./cmd/server
+make server
 ```
 
-**Windows PowerShell:**
-```powershell
-foreach ($l in Get-Content .env.local) {
-  if ($l -match '^([^#][^=]*)=(.*)$') {
-    [System.Environment]::SetEnvironmentVariable($matches[1].Trim(), $matches[2].Trim())
-  }
-}
-cd backend
-go run ./cmd/server
-```
+This loads `.env.local` and starts the server on `http://localhost:8080`. The target detects the OS (PowerShell on Windows, inline env on macOS/Linux), so the same command works everywhere — no manual env-var loading needed.
 
-Server starts on `http://localhost:8080`.
+> Prefer to run it by hand? Load `.env.local` into your shell, then `cd backend && go run ./cmd/server`. Run from the repo root so `DB_PATH=../dataset/predictions.db` resolves correctly.
 
 ### 4. Seed images
 
-In a new terminal, load the same env vars, then:
+In a new terminal, from the repo root:
 
 ```sh
-# macOS/Linux:
-cd backend && go run ./cmd/seed
-
-# Windows (after loading env vars as above):
-cd backend
-go run ./cmd/seed
+make seed
 ```
 
 Uploads all 50 JPEGs from `dataset/images/` to MinIO. Re-running is safe — already-uploaded photos are skipped.
@@ -133,3 +117,5 @@ See `.env.example` for the full list. Key variables:
 | `MINIO_BUCKET` | backend + seed | Default: `scout` |
 | `VITE_API_URL` | frontend | Backend base URL — must match where the backend is running |
 | `VITE_API_KEY` | frontend | Must equal `API_KEY` |
+
+Optional backend tuning (sensible defaults, override only if needed): `THUMB_CACHE_SIZE_MB` (disk cache cap, default 500), `THUMB_RATE_PER_SEC` / `THUMB_RATE_BURST` (per-IP rate limit on `/thumbnails`, default 30/60).
