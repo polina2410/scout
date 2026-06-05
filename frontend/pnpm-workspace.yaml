@@ -1,0 +1,4 @@
+# Supply-chain guard (pnpm 10+): refuse to install package versions published
+# less than 7 days ago (10080 minutes), enforcing the CLAUDE.md rule that only
+# dependencies published for at least one week may be added or upgraded.
+minimumReleaseAge: 10080
