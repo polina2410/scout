@@ -69,6 +69,6 @@ export async function listPhotos(
   return apiFetch<PhotoPage>(`/photos${query ? `?${query}` : ''}`, { signal })
 }
 
-export async function getPhoto(photoId: string): Promise<Photo> {
-  return apiFetch<Photo>(`/photos/${photoId}`)
+export async function getPhoto(photoId: string, signal?: AbortSignal): Promise<Photo> {
+  return apiFetch<Photo>(`/photos/${photoId}`, { signal })
 }

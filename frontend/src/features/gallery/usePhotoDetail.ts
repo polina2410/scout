@@ -39,23 +39,21 @@ export function usePhotoDetail(photoId: string | null): UsePhotoDetailResult {
       return
     }
 
-    let cancelled = false
+    const controller = new AbortController()
     dispatch({ type: 'LOADING' })
 
-    getPhoto(photoId)
+    getPhoto(photoId, controller.signal)
       .then((photo) => {
-        if (!cancelled) dispatch({ type: 'SUCCESS', photo })
+        if (!controller.signal.aborted) dispatch({ type: 'SUCCESS', photo })
       })
       .catch((err: unknown) => {
-        if (!cancelled) {
-          const error = err instanceof Error ? err.message : 'Failed to load photo'
-          dispatch({ type: 'ERROR', error })
-        }
+        // An abort (photo change / unmount) is expected cleanup, not an error.
+        if (controller.signal.aborted) return
+        const error = err instanceof Error ? err.message : 'Failed to load photo'
+        dispatch({ type: 'ERROR', error })
       })
 
-    return () => {
-      cancelled = true
-    }
+    return () => controller.abort()
   }, [photoId])
 
   return state

@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useCallback } from 'react'
+import { useReducer, useEffect, useCallback, useRef } from 'react'
 import { listPhotos, type Photo, type ListPhotosParams } from '../../api'
 
 const PAGE_LIMIT = 20
@@ -63,13 +63,17 @@ export function usePhotos(
   const classId = params?.classId
   const minConfidence = params?.minConfidence
 
+  // Tracks the in-flight load-more request so it can be aborted when filters
+  // change or the component unmounts, preventing a stale page from being appended.
+  const loadMoreControllerRef = useRef<AbortController | null>(null)
+
   useEffect(() => {
     dispatch({ type: 'RESET' })
-    let cancelled = false
+    const controller = new AbortController()
 
-    listPhotos({ classId: classId ?? undefined, minConfidence, limit: PAGE_LIMIT })
+    listPhotos({ classId: classId ?? undefined, minConfidence, limit: PAGE_LIMIT }, controller.signal)
       .then((page) => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           dispatch({
             type: 'FIRST_PAGE_SUCCESS',
             photos: page.items,
@@ -78,14 +82,15 @@ export function usePhotos(
         }
       })
       .catch((err: unknown) => {
-        if (!cancelled) {
-          const message = err instanceof Error ? err.message : 'Failed to load photos'
-          dispatch({ type: 'ERROR', message })
-        }
+        if (controller.signal.aborted) return
+        const message = err instanceof Error ? err.message : 'Failed to load photos'
+        dispatch({ type: 'ERROR', message })
       })
 
     return () => {
-      cancelled = true
+      controller.abort()
+      // A load-more from the previous filter must not append onto a reset list.
+      loadMoreControllerRef.current?.abort()
     }
   }, [classId, minConfidence])
 
@@ -96,8 +101,16 @@ export function usePhotos(
 
     dispatch({ type: 'LOAD_MORE' })
 
-    listPhotos({ classId: classId ?? undefined, minConfidence, cursor: state.cursor, limit: PAGE_LIMIT })
+    loadMoreControllerRef.current?.abort()
+    const controller = new AbortController()
+    loadMoreControllerRef.current = controller
+
+    listPhotos(
+      { classId: classId ?? undefined, minConfidence, cursor: state.cursor, limit: PAGE_LIMIT },
+      controller.signal,
+    )
       .then((page) => {
+        if (controller.signal.aborted) return
         dispatch({
           type: 'MORE_PAGE_SUCCESS',
           photos: page.items,
@@ -105,6 +118,7 @@ export function usePhotos(
         })
       })
       .catch((err: unknown) => {
+        if (controller.signal.aborted) return
         const message = err instanceof Error ? err.message : 'Failed to load more photos'
         dispatch({ type: 'MORE_ERROR', message })
       })

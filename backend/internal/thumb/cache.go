@@ -5,10 +5,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 )
+
+// validCacheKey matches the only shape a cache key ever takes:
+// {photoId}_{w}_{dpr}_{fmt}, all of which are hex, digits, hyphens or letters.
+// Anything else (path separators, dots, ":", control chars) is rejected.
+var validCacheKey = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
 // tmpPrefix marks in-progress cache writes so they can be skipped on load and
 // never collide with a real cache key (keys never start with a dot).
@@ -106,11 +112,11 @@ func (c *DiskCache) warm() {
 }
 
 // safePath returns the resolved path for key within the cache directory.
-// Valid keys are flat filenames ({photoId}_{w}_{dpr}_{fmt}); rejecting any key
-// that isn't its own base name (a path separator, "." or "..") keeps it from
-// escaping the cache dir without depending on filesystem case-sensitivity.
+// The allowlist regexp rejects any key containing a path separator, "..", or
+// other unexpected characters, so a key can never escape the cache dir and the
+// guard does not depend on filesystem case-sensitivity.
 func (c *DiskCache) safePath(key string) (string, error) {
-	if key == "" || key == "." || key == ".." || key != filepath.Base(key) || strings.Contains(key, "..") {
+	if !validCacheKey.MatchString(key) {
 		return "", fmt.Errorf("invalid cache key %q", key)
 	}
 	return filepath.Join(c.dir, key), nil

@@ -10,8 +10,14 @@
   overflow-y: auto;
 }
 
-.stageWrap {
+/* Positioning context for the status overlay, which sits alongside (not inside)
+   the role="img" canvas wrapper. */
+.stageArea {
   position: relative;
+  width: 100%;
+}
+
+.stageWrap {
   width: 100%;
   display: flex;
   justify-content: center;

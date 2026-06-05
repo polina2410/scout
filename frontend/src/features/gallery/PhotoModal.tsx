@@ -124,7 +124,7 @@ export function PhotoModal(): React.ReactElement {
                   </div>
                 </div>
                 <div className={styles.sidebar}>
-                  <h2 className={styles.sidebarTitle}>Detections</h2>
+                  <h3 className={styles.sidebarTitle}>Detections</h3>
                   {photo.predictions.length === 0 ? (
                     <p className={styles.noDetections}>No detections.</p>
                   ) : (

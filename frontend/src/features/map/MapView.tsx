@@ -98,77 +98,81 @@ export function MapView(): React.ReactElement {
   return (
     <aside className={styles.container} aria-label="Greenhouse map">
       <h2 className={styles.title}>Greenhouse Floor</h2>
-      {/* The Konva canvas is mouse-only; role="img" gives screen readers a
-          summary and the visually-hidden list below is the keyboard/SR path. */}
-      <div
-        ref={stageWrapRef}
-        className={styles.stageWrap}
-        role="img"
-        aria-label={`Greenhouse floor map, ${photos.length} photos plotted`}
-      >
-        <Stage
-          width={size}
-          height={size}
-          draggable
-          onWheel={handleWheel}
-          onDragEnd={handleDragEnd}
-          onClick={handleStageClick}
-          scaleX={zoom}
-          scaleY={zoom}
-          x={panX}
-          y={panY}
-          className={styles.stage}
+      {/* The status overlays are siblings of — not children of — the role="img"
+          wrapper: ARIA forbids live regions (role=status/alert) inside an image. */}
+      <div className={styles.stageArea}>
+        {/* The Konva canvas is mouse-only; role="img" gives screen readers a
+            summary and the visually-hidden list below is the keyboard/SR path. */}
+        <div
+          ref={stageWrapRef}
+          className={styles.stageWrap}
+          role="img"
+          aria-label={`Greenhouse floor map, ${photos.length} photos plotted`}
         >
-          <Layer>
-            {/* floor background */}
-            <Rect x={0} y={0} width={size} height={size} fill="#0a0a0a" />
-            {/* grid lines */}
-            {gridLines.flatMap((pos) => [
-              <Line
-                key={`h${pos}`}
-                points={[0, pos, size, pos]}
-                stroke="#1e1e1e"
-                strokeWidth={1}
-                listening={false}
-              />,
-              <Line
-                key={`v${pos}`}
-                points={[pos, 0, pos, size]}
-                stroke="#1e1e1e"
-                strokeWidth={1}
-                listening={false}
-              />,
-            ])}
-            {/* location filter circle */}
-            {locationFilter && (
-              <Circle
-                x={metersToCanvas(locationFilter.x, locationFilter.y, scale).cx}
-                y={metersToCanvas(locationFilter.x, locationFilter.y, scale).cy}
-                radius={locationFilter.radius * scale}
-                stroke="#4a9eff"
-                strokeWidth={1}
-                dash={[4, 4]}
-                fill="rgba(74,158,255,0.06)"
-                listening={false}
-              />
-            )}
-            {/* photo dots */}
-            {photos.map((photo) => {
-              const { cx, cy } = metersToCanvas(photo.x, photo.y, scale)
-              return (
+          <Stage
+            width={size}
+            height={size}
+            draggable
+            onWheel={handleWheel}
+            onDragEnd={handleDragEnd}
+            onClick={handleStageClick}
+            scaleX={zoom}
+            scaleY={zoom}
+            x={panX}
+            y={panY}
+            className={styles.stage}
+          >
+            <Layer>
+              {/* floor background */}
+              <Rect x={0} y={0} width={size} height={size} fill="#0a0a0a" />
+              {/* grid lines */}
+              {gridLines.flatMap((pos) => [
+                <Line
+                  key={`h${pos}`}
+                  points={[0, pos, size, pos]}
+                  stroke="#1e1e1e"
+                  strokeWidth={1}
+                  listening={false}
+                />,
+                <Line
+                  key={`v${pos}`}
+                  points={[pos, 0, pos, size]}
+                  stroke="#1e1e1e"
+                  strokeWidth={1}
+                  listening={false}
+                />,
+              ])}
+              {/* location filter circle */}
+              {locationFilter && (
                 <Circle
-                  key={photo.id}
-                  x={cx}
-                  y={cy}
-                  radius={DOT_RADIUS_PX}
-                  fill={dotColor(photo)}
-                  opacity={matchesFilter(photo, classId, minConfidence) ? 1 : 0.2}
-                  onClick={() => dispatch(selectPhoto(photo.id))}
+                  x={metersToCanvas(locationFilter.x, locationFilter.y, scale).cx}
+                  y={metersToCanvas(locationFilter.x, locationFilter.y, scale).cy}
+                  radius={locationFilter.radius * scale}
+                  stroke="#4a9eff"
+                  strokeWidth={1}
+                  dash={[4, 4]}
+                  fill="rgba(74,158,255,0.06)"
+                  listening={false}
                 />
-              )
-            })}
-          </Layer>
-        </Stage>
+              )}
+              {/* photo dots */}
+              {photos.map((photo) => {
+                const { cx, cy } = metersToCanvas(photo.x, photo.y, scale)
+                return (
+                  <Circle
+                    key={photo.id}
+                    x={cx}
+                    y={cy}
+                    radius={DOT_RADIUS_PX}
+                    fill={dotColor(photo)}
+                    opacity={matchesFilter(photo, classId, minConfidence) ? 1 : 0.2}
+                    onClick={() => dispatch(selectPhoto(photo.id))}
+                  />
+                )
+              })}
+            </Layer>
+          </Stage>
+        </div>
         {status === 'loading' && (
           <div className={styles.statusOverlay} role="status">
             Loading map…

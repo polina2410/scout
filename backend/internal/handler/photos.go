@@ -98,9 +98,11 @@ func (a *App) presignAll(r *http.Request, photos []db.Photo) (map[string]string,
 		return map[string]string{}, nil
 	}
 
-	// Derive a cancellable context from the request so that a client disconnect
-	// or the first presign failure stops in-flight workers promptly, instead of
-	// leaving them to run their MinIO calls to completion on results no one reads.
+	// Derive a cancellable context from the request. On a client disconnect or the
+	// first presign failure, workers still waiting to acquire the semaphore exit
+	// immediately; a presign call already in flight runs to completion (the MinIO
+	// SDK doesn't abort mid-call) but its result is simply discarded. Either way
+	// no goroutine leaks, since the results channel is buffered to len(photos).
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
