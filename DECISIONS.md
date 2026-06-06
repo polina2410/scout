@@ -149,3 +149,173 @@ Source: `backend/go.mod` lines 5–6, 32–34.
 **Why:** Automating the check catches transitive upgrades, not just direct ones. 10080 minutes is exactly the one-week threshold from CLAUDE.md. The field has no effect on pnpm < 10, so it is safe to commit without breaking older toolchains.
 
 Source: `frontend/pnpm-workspace.yaml` line 4.
+
+---
+
+## 13. UI is dark-only; theme pinned at the document root
+
+**Problem:** `index.css` declared `color-scheme: light dark` with a white `:root` background and applied the dark palette only inside a `@media (prefers-color-scheme: dark)` block, while every component hard-codes dark colors. On a light-mode OS the page background fell back to white: a white flash before React mounts, and a fully white gallery panel whenever the grid was empty (the `.main` element had no background of its own, so the white document showed through). A live Playwright review confirmed both.
+
+**Decision:** Treat Scout as a dark-only UI. `:root` is now `color-scheme: dark` with `background: #16171d` unconditionally (no `prefers-color-scheme` branch), and the gallery `.main` carries its own `#16171d` background as defense-in-depth.
+
+**Why:** All component styling is already dark; supporting a real light theme would mean re-theming every module. Pinning the scheme at the root is the smallest change that removes the flash and the empty-state white panel for every OS preference, and `color-scheme: dark` also makes native controls/scrollbars render dark. The redundant `.main` background guarantees the empty/loading states never expose the document background even if the root rule changes.
+
+Source: `frontend/src/index.css` lines 5–13; `frontend/src/App.module.css` `.main`.
+
+---
+
+## 14. Bounding-box legibility via a dark halo, not per-class recoloring
+
+**Problem:** `CLASS_COLORS.powdery_mildew` is `#ffffff`. A 2px white stroke is legible on dark foliage but washes out on pale/blown-out regions of a photo — and powdery mildew is the most common class. The naive fix (recolor `powdery_mildew`) was flagged by a static review as "Critical/invisible."
+
+**Decision:** Keep `CLASS_COLORS` unchanged. In `BboxCanvas`, draw each box twice — a darker, wider underlay (`rgba(0,0,0,0.55)`, 4px) first, then the class color (2px) on top — so every box gets a contrast halo on any background.
+
+**Why:** The halo fixes legibility for *all* classes on *any* background, not just the white one, while preserving the agreed class palette. Recoloring only `powdery_mildew` would leave the same risk for other light colors (e.g. `whitefly_aphid` yellow on a bright leaf) and would also change the map dots, which reuse `CLASS_COLORS` against a dark floor where white reads fine. Line widths are extracted to named constants (`BOX_LINE_WIDTH`, `BOX_HALO_WIDTH`) per the no-magic-numbers rule.
+
+Source: `frontend/src/features/gallery/BboxCanvas.tsx`.
+
+---
+
+## 15. Disabled-control hints and empty states are recoverable in-place
+
+**Problem:** Two states left the user without a visible next step. The map radius slider is `disabled` until a location is set, but its explanatory hint lived in a screen-reader-only span — sighted users saw a greyed slider with no reason. And the empty gallery showed only "No photos found.", with the only recovery (Reset) far away in the top filter bar.
+
+**Decision:**
+- The radius hint is a visible caption (`styles.hint`) rendered below the controls when no location filter is active; it still serves as the slider's `aria-describedby` target, so one element covers both sighted and assistive-tech users.
+- The empty state renders an inline **"Clear filters"** button — shown only when a filter is actually active (`classId`, `minConfidence > 0`, or `locationFilter`) — that dispatches `resetFilters`.
+
+**Why:** A hint that explains a disabled control belongs on screen, not only in the accessibility tree; collapsing the visible and `aria-describedby` text into one node avoids duplicated, drifting copy. Gating the Clear-filters button on an active filter avoids offering a no-op action when the dataset is genuinely empty.
+
+Source: `frontend/src/features/map/MapView.tsx`; `frontend/src/features/gallery/GalleryGrid.tsx`.
+
+---
+
+## 16. Photo ordering and cursor encoding
+
+**Problem:** The contract specifies cursor pagination with an "opaque" token and a 1–200 / default-50 limit, but never defines the *order* photos come back in. Without a stable, total order, keyset pagination can skip or repeat rows, and "newest first" vs. "by position" is a product choice.
+
+**Decision:** Order by `captured_at DESC, id DESC` (newest photo first; `id` breaks ties for a total order). The cursor is `base64url("<RFC3339 captured_at>|<id>")`, and the page query fetches `limit + 1` rows to detect a next page without a separate `COUNT`.
+
+**Why:** Newest-first is the useful default for a monitoring feed. A composite `(captured_at, id)` keyset is stable under inserts and far cheaper than `OFFSET` paging on a growing table. Encoding both fields in the cursor lets the `WHERE (captured_at < ? OR (captured_at = ? AND id < ?))` clause resume deterministically even when many photos share a timestamp. The `+1` lookahead avoids a second round-trip just to know whether `next_token` should be set.
+
+Source: `backend/internal/db/db.go` — `ListPhotos` ordering lines 117–138, cursor decode lines 97–112, encode lines 161–167.
+
+---
+
+## 17. SQLite access: pure-Go driver, read-only DSN, single connection
+
+**Problem:** CLAUDE.md says `predictions.db` is a read-only source of truth and forbids an ORM, but does not pick a driver or a concurrency model. The common `mattn/go-sqlite3` driver requires cgo, which complicates cross-compilation and static builds.
+
+**Decision:** Use the pure-Go `modernc.org/sqlite` driver. Open with DSN `file:<path>?mode=ro&_busy_timeout=5000`, and cap the pool at `SetMaxOpenConns(1)` / `SetMaxIdleConns(1)`.
+
+**Why:** A pure-Go driver keeps the binary cgo-free and portable (and is what the thumbnail engine's no-cgo build path also relies on — see decision #18). `mode=ro` enforces the read-only invariant at the driver level, so a stray write fails loudly rather than mutating the provided DB. A single connection serializes access to one file handle: the dataset is tiny and read-only, so there is no concurrency benefit to a larger pool, and one connection sidesteps SQLite's writer-lock and busy-retry edge cases entirely. `_busy_timeout` is belt-and-suspenders for the rare lock contention.
+
+Source: `backend/internal/db/db.go` — `Open` lines 42–56, `NewDB` lines 36–40.
+
+---
+
+## 18. WebP encoding via cgo build tag, with JPEG fallback
+
+**Problem:** The thumbnail design prefers WebP (see decision #1), but Go has no WebP *encoder* in its standard library or in `golang.org/x/image`. The good encoders bind libwebp through cgo, which conflicts with the cgo-free build goal and would break any environment without a C toolchain.
+
+**Decision:** Split encoding across build tags. `encode_cgo.go` (`//go:build cgo`) encodes real WebP via `github.com/chai2010/webp`; `encode_nocgo.go` (`//go:build !cgo`) encodes JPEG only. In the no-cgo build, `effectiveFormat("webp")` returns `"jpeg"`, and that effective format is what gets used for both the cache key (`{photoId}_{w}_{dpr}_{fmt}`) and the response `Content-Type`.
+
+**Why:** This lets the same codebase produce true WebP where a C toolchain exists and degrade gracefully to JPEG where it doesn't, without the frontend or cache needing to know which build is running. Keying the cache on the *effective* format prevents a future cgo build from serving a JPEG that an earlier no-cgo build cached under a `_webp` key. JPEG at q85 is a perfectly serviceable fallback; the only cost is larger bytes over the wire.
+
+Source: `backend/internal/thumb/encode_cgo.go`, `backend/internal/thumb/encode_nocgo.go`; cache-key use in `service.go` lines 126–129.
+
+---
+
+## 19. Thumbnail resampling and quality
+
+**Problem:** Generating a thumbnail from a 2560×1440 original requires choosing a downscale algorithm and an encoder quality — a direct quality-vs-CPU/size tradeoff that nothing in the spec pins down.
+
+**Decision:** Downscale with `golang.org/x/image/draw.CatmullRom`. Encode JPEG at quality 85 and WebP at quality 80. The output height is derived from the requested width times the source aspect ratio, so thumbnails are never distorted.
+
+**Why:** Catmull-Rom is a high-quality resampling kernel — noticeably sharper than bilinear/approx-bilinear for photographic downscales, and the per-image cost is acceptable under the 4-slot generation cap (see decision #3). q85 JPEG / q80 WebP sit at the usual "visually lossless for thumbnails" sweet spot. Deriving height from the source preserves the bbox coordinate math, which assumes the rendered image keeps the original aspect ratio.
+
+Source: `backend/internal/thumb/service.go` — `generate` lines 192–201; `jpegQuality` line 27, `webpQuality` in `encode_cgo.go` line 13.
+
+---
+
+## 20. Metrics are custom JSON, not Prometheus exposition
+
+**Problem:** CLAUDE.md requires `/metrics` to expose request rate, latency, error rate, and thumbnail cache hit/miss + generation time, but not a wire format. The default assumption would be Prometheus text exposition.
+
+**Decision:** Serve a single nested JSON document (`{ requests: {...}, thumbnails: {...} }`) with derived fields (requests/sec, error rate, cache hit rate, mean/p50/p95). Latency and generation time percentiles come from fixed-bound in-process histograms; rates are derived from an uptime counter.
+
+**Why:** There is no Prometheus/scrape stack in this assignment, and a human-readable JSON blob is directly inspectable with `curl` and trivial to assert in tests. Fixed-bucket histograms give stable p50/p95 without retaining per-request samples or pulling in a metrics library, keeping memory flat and the dependency surface minimal. The format is easy to swap for Prometheus later if a scrape target is ever needed.
+
+Source: `backend/internal/handler/metrics.go`; histogram buckets in `thumb/service.go` lines 30–35, `metrics` package collector.
+
+---
+
+## 21. Thumbnail HTTP caching headers
+
+**Problem:** The disk cache (see decision #3) avoids regenerating thumbnails server-side, but without response cache headers every browser and proxy still re-fetches each thumbnail on every view.
+
+**Decision:** Thumbnail responses set `Cache-Control: public, max-age=3600` and an `X-Cache: HIT|MISS` header reflecting the server-side disk-cache outcome.
+
+**Why:** A 1-hour public TTL lets browsers and any shared proxy serve repeat thumbnail views without touching the origin — thumbnails are immutable for a given `(photoId, w, dpr, fmt)` key, so caching is safe. `public` is acceptable because the thumbnail endpoint is unauthenticated by design (it is out of the data-API contract and rate-limited instead). `X-Cache` makes the server-side hit/miss observable per response, complementing the aggregate counters in `/metrics`.
+
+Source: `backend/internal/thumb/service.go` — `serveImage` lines 226–233.
+
+---
+
+## 22. Singleflight generation runs on a detached context
+
+**Problem:** Identical in-flight thumbnail requests are coalesced via singleflight (see decision #3). If that shared generation used the originating request's context, a single caller disconnecting would cancel the work for *every* waiter sharing the key.
+
+**Decision:** The singleflight function runs `generate(context.Background(), p)` — detached from any one caller's request context. Semaphore acquisition inside it is a non-blocking `select`: when all 4 slots are busy it returns `errAtCapacity` immediately, which every coalesced waiter receives as the same `503 Retry-After: 5`.
+
+**Why:** Detaching the context means the first caller's disconnect cannot poison the result for the others queued behind the same key; the generated bytes still land in the cache for the next request regardless. Non-blocking acquisition makes back-pressure explicit and fast — callers get a 503 to retry rather than piling up on a blocked channel and exhausting goroutines/sockets under load.
+
+Source: `backend/internal/thumb/service.go` — `Handle` singleflight + semaphore lines 138–152.
+
+---
+
+## 23. Out-of-contract error statuses reuse the error envelope
+
+**Problem:** The thumbnail endpoint (outside the openapi contract) needs to express "rate limited" (429) and "at capacity" (503), but the contract's error schema only enumerates codes for 400/401/404/500.
+
+**Decision:** Emit 429 with code `TooManyRequests` and 503 with code `ServiceUnavailable`, using the same `{ request_id, message, code }` envelope as the contract errors. The constants are commented as intentionally outside the openapi enum. (401 and 429 are also emitted as string literals from the `middleware` package, which cannot import `handler` without an import cycle.)
+
+**Why:** Reusing one error shape everywhere keeps clients able to parse any failure uniformly, even for statuses the data-API contract never needed. Confining the contract enum to its documented codes — while letting the non-contract thumbnail path add two more — keeps `openapi.yaml` an accurate description of the *data* API without pretending to cover thumbnail delivery.
+
+Source: `backend/internal/handler/handler.go` — error code constants lines 15–22.
+
+---
+
+## 24. Thumbnail rate limiter: token bucket, defaults 30/sec burst 60
+
+**Problem:** The thumbnail endpoint is unauthenticated and backed by a 4-slot generation semaphore. Without rate limiting, a single client could flood it and starve everyone. decision #9 covers *which IP* to attribute a request to, but not the limiter's existence or tuning.
+
+**Decision:** A per-IP token-bucket limiter guards `/thumbnails`, configurable via `THUMB_RATE_PER_SEC` (default 30) and `THUMB_RATE_BURST` (default 60); both must be positive or startup fails. On rejection it returns 429 (see decision #23).
+
+**Why:** A burst of 60 comfortably covers one gallery screen's worth of thumbnail requests loading at once (grid × DPR variants), so normal browsing is never throttled. The 30/sec sustained refill caps a flood at a rate the 4-slot generator can actually keep up with, so the limiter sheds load *before* the semaphore saturates and starts returning 503s. Making both values env-tunable lets operators adjust for their own gallery sizes and hardware.
+
+Source: `backend/internal/config/config.go` lines 72–86; `backend/internal/middleware/ratelimit.go`.
+
+---
+
+## 25. `GET /health` endpoint
+
+**Problem:** Nothing in the contract or CLAUDE.md defines a liveness/readiness probe, but container orchestration, `docker compose` healthchecks, and the README verification flow all benefit from a cheap, unauthenticated "is it up?" signal.
+
+**Decision:** Add `GET /health` returning `{ "status": ..., "version": ... }` as JSON, outside the openapi data-API contract and not requiring `X-API-Key`.
+
+**Why:** A dedicated health route gives deploy tooling and the verification script a dependency-free check that doesn't need an API key or touch SQLite/MinIO. Keeping it out of `openapi.yaml` is deliberate — the contract describes the data API, and operational endpoints (`/health`, `/metrics`, `/thumbnails`) live alongside it rather than inside it.
+
+Source: `backend/internal/handler/handler.go` — `HealthResponse` lines 60–64; route wiring in `backend/cmd/server/main.go`.
+
+---
+
+## 26. Frontend requests thumbnails as JPEG only
+
+**Problem:** The thumbnail engine prefers WebP (see decision #1 and decision #18), but the frontend has to choose a concrete `fmt` for every gallery request and `srcset` entry.
+
+**Decision:** `thumbnailUrl` hard-codes `fmt=jpeg` (with 1×/2×/3× DPR variants in the `srcset`). WebP negotiation is deferred rather than attempted client-side.
+
+**Why:** The default local/dev build runs the server without cgo, where a `webp` request transparently degrades to JPEG anyway (see decision #18) — so requesting `webp` would yield identical bytes under a different cache key, with no benefit and a risk of confusion. Pinning JPEG keeps the delivered format predictable across build configurations. Revisiting this (e.g. `<picture>`/`Accept`-based negotiation to actually ship smaller WebP in cgo builds) is a known follow-up, noted here so the divergence from the "WebP preferred" design is intentional and visible.
+
+Source: `frontend/src/features/gallery/thumbnailUrl.ts`.
