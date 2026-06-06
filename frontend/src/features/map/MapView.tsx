@@ -210,17 +210,20 @@ export function MapView(): React.ReactElement {
           className={styles.slider}
           disabled={!locationFilter}
         />
-        {!locationFilter && (
-          <span id="radius-hint" className={a11y.srOnly}>
-            Select a photo from the list or click the map to set a location, then adjust the radius.
-          </span>
-        )}
         {locationFilter && (
           <button className={styles.clearBtn} onClick={() => dispatch(clearLocationFilter())}>
             Clear
           </button>
         )}
       </div>
+      {/* Visible to everyone (not just screen readers) so sighted users
+          understand why the radius slider is disabled. Doubles as the
+          slider's aria-describedby target. */}
+      {!locationFilter && (
+        <p id="radius-hint" className={styles.hint}>
+          Click the map or pick a photo to set a location, then adjust the radius.
+        </p>
+      )}
     </aside>
   )
 }
