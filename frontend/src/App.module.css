@@ -35,6 +35,9 @@
 .main {
   flex: 1;
   overflow-y: auto;
+  /* Own dark background so empty/loading states never expose the page
+     background behind the gallery. */
+  background: #16171d;
 }
 
 /* Tablet & below: stack map over gallery and let the whole page scroll
