@@ -27,14 +27,22 @@ export function PhotoCard({ photo }: PhotoCardProps) {
       aria-label={`Greenhouse photo, ${describePredictions(photo.predictions)}. View details.`}
     >
       <div className={styles.imageWrapper}>
-        <img
-          src={thumbnailUrl(photo.id, CARD_CSS_WIDTH, 1)}
-          srcSet={thumbnailSrcSet(photo.id, CARD_CSS_WIDTH)}
-          alt=""
-          className={styles.image}
-          loading="lazy"
-          decoding="async"
-        />
+        {/* <picture> lets the browser negotiate WebP natively: it uses the WebP
+            source only if it can render it, otherwise the JPEG <img> fallback —
+            so cgo builds ship smaller WebP and no browser ever gets a format it
+            can't display. The <picture> is display:contents so the <img> keeps
+            sizing against .imageWrapper. */}
+        <picture className={styles.picture}>
+          <source type="image/webp" srcSet={thumbnailSrcSet(photo.id, CARD_CSS_WIDTH, 'webp')} />
+          <img
+            src={thumbnailUrl(photo.id, CARD_CSS_WIDTH, 1, 'jpeg')}
+            srcSet={thumbnailSrcSet(photo.id, CARD_CSS_WIDTH, 'jpeg')}
+            alt=""
+            className={styles.image}
+            loading="lazy"
+            decoding="async"
+          />
+        </picture>
         <BboxCanvas predictions={photo.predictions} />
       </div>
     </button>

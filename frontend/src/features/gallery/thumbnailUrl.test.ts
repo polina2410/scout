@@ -16,6 +16,15 @@ describe('thumbnailUrl', () => {
     expect(url).toContain('fmt=jpeg')
   })
 
+  it('defaults to jpeg when no format is given', () => {
+    expect(thumbnailUrl('abc', 240, 1)).toContain('fmt=jpeg')
+  })
+
+  it('honors an explicit format', () => {
+    expect(thumbnailUrl('abc', 240, 1, 'webp')).toContain('fmt=webp')
+    expect(thumbnailUrl('abc', 240, 1, 'jpeg')).toContain('fmt=jpeg')
+  })
+
   it('includes the base VITE_API_URL', () => {
     const url = thumbnailUrl('abc', 240, 1)
     expect(url.startsWith(BASE_URL)).toBe(true)
@@ -31,5 +40,14 @@ describe('thumbnailSrcSet', () => {
     expect(srcSet).toContain('/thumbnails/abc')
     const parts = srcSet.split(', ')
     expect(parts).toHaveLength(3)
+  })
+
+  it('builds every entry in the requested format', () => {
+    const webp = thumbnailSrcSet('abc', 240, 'webp')
+    expect(webp.match(/fmt=webp/g)).toHaveLength(3)
+    expect(webp).not.toContain('fmt=jpeg')
+
+    const jpeg = thumbnailSrcSet('abc', 240, 'jpeg')
+    expect(jpeg.match(/fmt=jpeg/g)).toHaveLength(3)
   })
 })

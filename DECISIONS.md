@@ -310,12 +310,12 @@ Source: `backend/internal/handler/handler.go` — `HealthResponse` lines 60–64
 
 ---
 
-## 26. Frontend requests thumbnails as JPEG only
+## 26. Frontend negotiates WebP via `<picture>`, JPEG as fallback
 
-**Problem:** The thumbnail engine prefers WebP (see decision #1 and decision #18), but the frontend has to choose a concrete `fmt` for every gallery request and `srcset` entry.
+**Problem:** The thumbnail engine prefers WebP (see decision #1 and decision #18), but the frontend must pick a concrete `fmt` for every gallery request. Requesting `webp` unconditionally would hand a WebP body to browsers that can't render it (broken images, violating "never a broken-image grid"); requesting `jpeg` unconditionally never ships the smaller WebP that cgo builds can produce.
 
-**Decision:** `thumbnailUrl` hard-codes `fmt=jpeg` (with 1×/2×/3× DPR variants in the `srcset`). WebP negotiation is deferred rather than attempted client-side.
+**Decision:** `PhotoCard` renders a `<picture>` with a `<source type="image/webp">` (1×/2×/3× `srcset`) and a JPEG `<img>` fallback (`thumbnailUrl`/`thumbnailSrcSet` take an optional `fmt`, default `jpeg`). The `<picture>` is `display: contents` so the `<img>` keeps sizing against `.imageWrapper` and the bbox overlay is unaffected.
 
-**Why:** The default local/dev build runs the server without cgo, where a `webp` request transparently degrades to JPEG anyway (see decision #18) — so requesting `webp` would yield identical bytes under a different cache key, with no benefit and a risk of confusion. Pinning JPEG keeps the delivered format predictable across build configurations. Revisiting this (e.g. `<picture>`/`Accept`-based negotiation to actually ship smaller WebP in cgo builds) is a known follow-up, noted here so the divergence from the "WebP preferred" design is intentional and visible.
+**Why:** `<picture>` lets the browser do the negotiation natively — it requests WebP only when it can decode it and otherwise loads the JPEG `<img>`, so there is no client-side feature detection to get wrong and no risk of an undisplayable response. In a cgo build the WebP source ships smaller bytes; in a no-cgo build the server maps `webp`→`jpeg` (decision #18), so the WebP source simply returns JPEG bytes under the WebP cache key with the correct `Content-Type` — still correct, just not smaller. Defaulting `fmt` to `jpeg` keeps the `<img>` fallback and any non-`<picture>` caller safe.
 
-Source: `frontend/src/features/gallery/thumbnailUrl.ts`.
+Source: `frontend/src/features/gallery/PhotoCard.tsx`; `frontend/src/features/gallery/thumbnailUrl.ts`; `.picture` in `PhotoCard.module.css`.
