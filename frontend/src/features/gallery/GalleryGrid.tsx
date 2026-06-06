@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { useAppSelector } from '../../store/hooks'
+import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { resetFilters } from '../filters/filtersSlice'
 import { usePhotos } from './usePhotos'
 import { PhotoCard } from './PhotoCard'
 import { photosNearby } from '../map/mapUtils'
@@ -17,9 +18,11 @@ const STAGGER_MAX_STEPS = 8 // cap the per-card delay at this many steps
 const STAGGER_STEP_S = 0.04 // delay added per stagger step
 
 export function GalleryGrid() {
+  const dispatch = useAppDispatch()
   const classId = useAppSelector((s) => s.filters.classId)
   const minConfidence = useAppSelector((s) => s.filters.minConfidence)
   const locationFilter = useAppSelector((s) => s.filters.locationFilter)
+  const isFiltered = classId !== null || minConfidence > 0 || locationFilter !== null
   const { photos, status, error, loadMoreError, hasMore, loadMore } = usePhotos(
     { classId: classId ?? undefined, minConfidence }
   )
@@ -83,7 +86,16 @@ export function GalleryGrid() {
         animate={{ opacity: 1 }}
         transition={FADE}
       >
-        No photos found.
+        <p>No photos found.</p>
+        {isFiltered && (
+          <button
+            type="button"
+            className={styles.clearFiltersBtn}
+            onClick={() => dispatch(resetFilters())}
+          >
+            Clear filters
+          </button>
+        )}
       </motion.div>
     )
   }

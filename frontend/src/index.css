@@ -3,21 +3,17 @@
   --mono: ui-monospace, Consolas, monospace;
 
   font: 16px/150% var(--sans);
-  color-scheme: light dark;
-  background: #fff;
-  color: #111;
+  /* Scout is a dark-only UI: pin the scheme and base colors so the page
+     never flashes white (or stays white in light-mode OS) before React
+     paints, and native controls/scrollbars render dark. */
+  color-scheme: dark;
+  background: #16171d;
+  color: #e5e7eb;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   box-sizing: border-box;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    background: #16171d;
-    color: #e5e7eb;
-  }
 }
 
 *,

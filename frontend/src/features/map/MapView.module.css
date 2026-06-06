@@ -68,6 +68,12 @@
   min-width: 9ch;
 }
 
+.hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #777;
+}
+
 .slider {
   width: 80px;
   accent-color: #4a9eff;

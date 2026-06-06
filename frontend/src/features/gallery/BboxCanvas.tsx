@@ -7,6 +7,13 @@ interface BboxCanvasProps {
   predictions: Prediction[]
 }
 
+// Each box is drawn twice: a darker, wider underlay first, then the class color
+// on top. The halo keeps every box (notably the white powdery_mildew color)
+// legible against both light and dark regions of the photo.
+const BOX_LINE_WIDTH = 2
+const BOX_HALO_WIDTH = 4
+const BOX_HALO_COLOR = 'rgba(0, 0, 0, 0.55)'
+
 export function BboxCanvas({ predictions }: BboxCanvasProps): React.ReactElement {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   // The observer below lives for the canvas's lifetime and reads predictions
@@ -36,8 +43,11 @@ export function BboxCanvas({ predictions }: BboxCanvasProps): React.ReactElement
 
       for (const pred of predictionsRef.current) {
         const { x, y, w: rw, h: rh } = bboxToPixels(pred.bbox, w, h)
+        ctx.strokeStyle = BOX_HALO_COLOR
+        ctx.lineWidth = BOX_HALO_WIDTH
+        ctx.strokeRect(x, y, rw, rh)
         ctx.strokeStyle = CLASS_COLORS[pred.classId] ?? FALLBACK_COLOR
-        ctx.lineWidth = 2
+        ctx.lineWidth = BOX_LINE_WIDTH
         ctx.strokeRect(x, y, rw, rh)
       }
     }
