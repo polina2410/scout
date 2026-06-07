@@ -14,6 +14,10 @@ func CORS(next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key, X-Request-ID")
+			// Custom response headers are not in the CORS-safelist, so the browser
+			// hides them from fetch()/XHR unless explicitly exposed. X-Cache lets the
+			// client read the thumbnail disk-cache HIT/MISS outcome.
+			w.Header().Set("Access-Control-Expose-Headers", "X-Cache")
 		}
 
 		if r.Method == http.MethodOptions {
