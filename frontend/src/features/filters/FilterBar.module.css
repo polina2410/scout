@@ -4,8 +4,8 @@
   gap: 16px;
   flex-wrap: wrap;
   padding: 12px 16px;
-  background: #111;
-  border-bottom: 1px solid #222;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
 
@@ -18,30 +18,30 @@
 .classBtn {
   padding: 4px 12px;
   border-radius: 9999px;
-  border: 1px solid #444;
+  border: 1px solid var(--color-border-control);
   background: transparent;
-  color: #ccc;
+  color: var(--color-text-muted);
   cursor: pointer;
   font-size: 13px;
   transition: border-color 0.15s, background 0.15s;
 }
 
 .classBtn:hover {
-  border-color: #888;
-  color: #fff;
+  border-color: var(--color-border-hover);
+  color: var(--color-text-strong);
 }
 
 .classBtn:focus-visible,
 .resetBtn:focus-visible,
 .slider:focus-visible {
-  outline: 2px solid #4a9eff;
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
 .classBtn.active {
-  border-color: var(--accent, #4a9eff);
-  background: color-mix(in srgb, var(--accent, #4a9eff) 15%, transparent);
-  color: #fff;
+  border-color: var(--accent, var(--color-accent));
+  background: color-mix(in srgb, var(--accent, var(--color-accent)) 15%, transparent);
+  color: var(--color-text-strong);
 }
 
 .confidence {
@@ -52,29 +52,29 @@
 
 .label {
   font-size: 13px;
-  color: #ccc;
+  color: var(--color-text-muted);
   white-space: nowrap;
   min-width: 11ch;
 }
 
 .slider {
   width: 120px;
-  accent-color: #4a9eff;
+  accent-color: var(--color-accent);
 }
 
 .resetBtn {
   padding: 4px 12px;
   border-radius: 4px;
-  border: 1px solid #555;
+  border: 1px solid var(--color-border-control-strong);
   background: transparent;
-  color: #aaa;
+  color: var(--color-text-subtle);
   cursor: pointer;
   font-size: 13px;
 }
 
 .resetBtn:hover {
-  border-color: #888;
-  color: #fff;
+  border-color: var(--color-border-hover);
+  color: var(--color-text-strong);
 }
 
 /* Mobile: let the confidence control take a full row so the slider isn't

@@ -2,13 +2,49 @@
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
+  /* Color palette — single source of truth. Names describe role; values are
+     the de-duplicated set previously inlined across the CSS modules. */
+
+  /* Surfaces (darkest → lightest) */
+  --color-letterbox: #000;          /* modal image letterbox */
+  --color-surface-sunken: #0d0d0d;  /* map panel */
+  --color-surface: #111;            /* filter bar, photo card */
+  --color-bg: #16171d;              /* app / page base */
+  --color-surface-raised: #1a1a1a;  /* card image area, modal dialog */
+  --color-header-bg: #1a1a2e;       /* top header */
+
+  /* Borders (subtle → prominent) */
+  --color-border: #222;
+  --color-border-muted: #333;
+  --color-border-control: #444;
+  --color-border-control-strong: #555;
+  --color-border-hover: #888;
+
+  /* Text (strongest → faintest) */
+  --color-text-strong: #fff;
+  --color-text: #e5e7eb;
+  --color-text-secondary: #ddd;
+  --color-text-muted: #ccc;
+  --color-text-subtle: #aaa;
+  --color-text-faint: #999;
+  --color-text-fainter: #777;
+
+  /* Accent & feedback */
+  --color-accent: #4a9eff;
+  --color-error: #e05c5c;
+  --color-error-bright: #ff8a8a;
+
+  /* Overlays & shadows */
+  --color-overlay: rgba(0, 0, 0, 0.8);
+  --color-card-shadow: rgba(0, 0, 0, 0.45);
+
   font: 16px/150% var(--sans);
   /* Scout is a dark-only UI: pin the scheme and base colors so the page
      never flashes white (or stays white in light-mode OS) before React
      paints, and native controls/scrollbars render dark. */
   color-scheme: dark;
-  background: #16171d;
-  color: #e5e7eb;
+  background: var(--color-bg);
+  color: var(--color-text);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

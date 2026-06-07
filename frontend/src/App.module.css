@@ -1,6 +1,5 @@
 .layout {
   --header-height: 56px;
-  --header-bg: #1a1a2e;
   --header-padding-x: 24px;
   --title-size: 20px;
 
@@ -10,7 +9,7 @@
 }
 
 .header {
-  background: var(--header-bg);
+  background: var(--color-header-bg);
   padding: 0 var(--header-padding-x);
   height: var(--header-height);
   display: flex;
@@ -19,7 +18,7 @@
 }
 
 .title {
-  color: #fff;
+  color: var(--color-text-strong);
   font-size: var(--title-size);
   font-weight: 600;
   margin: 0;
@@ -37,7 +36,7 @@
   overflow-y: auto;
   /* Own dark background so empty/loading states never expose the page
      background behind the gallery. */
-  background: #16171d;
+  background: var(--color-bg);
 }
 
 /* Tablet & below: stack map over gallery and let the whole page scroll

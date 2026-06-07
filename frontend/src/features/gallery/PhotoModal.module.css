@@ -1,7 +1,7 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: var(--color-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -11,7 +11,7 @@
 .dialog {
   position: relative;
   display: flex;
-  background: #1a1a1a;
+  background: var(--color-surface-raised);
   border-radius: 8px;
   overflow: hidden;
   max-width: min(1200px, 95vw);
@@ -29,7 +29,7 @@
   right: 12px;
   background: transparent;
   border: none;
-  color: #fff;
+  color: var(--color-text-strong);
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
@@ -38,11 +38,11 @@
 }
 
 .closeBtn:hover {
-  color: #aaa;
+  color: var(--color-text-subtle);
 }
 
 .closeBtn:focus-visible {
-  outline: 2px solid #4a9eff;
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -53,7 +53,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #000;
+  background: var(--color-letterbox);
   overflow: hidden;
 }
 
@@ -78,13 +78,13 @@
   flex-shrink: 0;
   padding: 48px 16px 16px;
   overflow-y: auto;
-  border-left: 1px solid #333;
+  border-left: 1px solid var(--color-border-muted);
 }
 
 .sidebarTitle {
   font-size: 14px;
   font-weight: 600;
-  color: #ccc;
+  color: var(--color-text-muted);
   margin: 0 0 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -92,7 +92,7 @@
 
 .noDetections {
   font-size: 13px;
-  color: #999;
+  color: var(--color-text-faint);
 }
 
 .predList {
@@ -122,11 +122,11 @@
 
 .predClass {
   flex: 1;
-  color: #ddd;
+  color: var(--color-text-secondary);
 }
 
 .predConf {
-  color: #999;
+  color: var(--color-text-faint);
   font-variant-numeric: tabular-nums;
 }
 
@@ -137,11 +137,11 @@
   justify-content: center;
   width: 100%;
   padding: 48px;
-  color: #999;
+  color: var(--color-text-faint);
 }
 
 .error {
-  color: #e05c5c;
+  color: var(--color-error);
 }
 
 /* Tablet & mobile: the dialog goes full-screen with the image stacked above
@@ -168,7 +168,7 @@
   .sidebar {
     width: auto;
     border-left: none;
-    border-top: 1px solid #333;
+    border-top: 1px solid var(--color-border-muted);
     padding: 12px 16px;
     max-height: 40svh;
   }
