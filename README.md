@@ -103,6 +103,23 @@ scout-takehome/
 └── .env.example       All env vars with descriptions
 ```
 
+## Styling & design tokens
+
+All component styles use CSS Modules (`*.module.css`) — no inline styles or global class strings. Shared visual values live in a single **design-token layer**: CSS custom properties defined on `:root` in `frontend/src/index.css`. Components reference `var(--token)` rather than hard-coding values, so the palette and scales have one source of truth.
+
+Token groups:
+
+| Group | Tokens | Examples |
+|---|---|---|
+| Color | surfaces, borders, text shades, accent, feedback, overlays | `--color-bg`, `--color-surface-raised`, `--color-text-faint`, `--color-accent`, `--color-error` |
+| Radius | `xs → pill` scale | `--radius-sm` (4px), `--radius-pill` |
+| Type | small-UI scale | `--text-xs` (12px), `--text-sm`, `--text-md` |
+| Motion | transition durations | `--duration-fast`, `--duration-base` |
+| Focus | keyboard focus ring | `--focus-ring`, `--focus-ring-offset` |
+| Misc | tracking, stacking | `--tracking-wide`, `--z-modal` |
+
+The UI is **dark-only**: the scheme and base colors are pinned at `:root` so there is no light-mode flash. Spacing/padding and genuine one-offs are intentionally left as literals. See `DECISIONS.md` #13 (dark-only theme) and #27 (design tokens) for the rationale.
+
 ## Environment variables
 
 See `.env.example` for the full list. Key variables:
