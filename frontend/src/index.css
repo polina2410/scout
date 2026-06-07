@@ -38,6 +38,33 @@
   --color-overlay: rgba(0, 0, 0, 0.8);
   --color-card-shadow: rgba(0, 0, 0, 0.45);
 
+  /* Corner radii (smallest → pill) */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-pill: 9999px;
+
+  /* Type scale for small UI text */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+
+  /* Motion */
+  --duration-fast: 0.15s;
+  --duration-base: 0.18s;
+
+  /* Tracking for uppercase section labels */
+  --tracking-wide: 0.05em;
+
+  /* Stacking */
+  --z-modal: 100;
+
+  /* Keyboard focus ring — applied as `outline: var(--focus-ring)` plus
+     `outline-offset: var(--focus-ring-offset)` on every focusable control. */
+  --focus-ring: 2px solid var(--color-accent);
+  --focus-ring-offset: 2px;
+
   font: 16px/150% var(--sans);
   /* Scout is a dark-only UI: pin the scheme and base colors so the page
      never flashes white (or stays white in light-mode OS) before React
@@ -76,7 +103,7 @@ p {
 
 code {
   font-family: var(--mono);
-  font-size: 14px;
+  font-size: var(--text-md);
 }
 
 #root {
