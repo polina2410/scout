@@ -319,3 +319,23 @@ Source: `backend/internal/handler/handler.go` — `HealthResponse` lines 60–64
 **Why:** `<picture>` lets the browser do the negotiation natively — it requests WebP only when it can decode it and otherwise loads the JPEG `<img>`, so there is no client-side feature detection to get wrong and no risk of an undisplayable response. In a cgo build the WebP source ships smaller bytes; in a no-cgo build the server maps `webp`→`jpeg` (decision #18), so the WebP source simply returns JPEG bytes under the WebP cache key with the correct `Content-Type` — still correct, just not smaller. Defaulting `fmt` to `jpeg` keeps the `<img>` fallback and any non-`<picture>` caller safe.
 
 Source: `frontend/src/features/gallery/PhotoCard.tsx`; `frontend/src/features/gallery/thumbnailUrl.ts`; `.picture` in `PhotoCard.module.css`.
+
+---
+
+## 27. CSS design tokens in `:root`, scoped to recurring values
+
+**Problem:** Color and sizing values were inlined as literals across the CSS modules — `#4a9eff` appeared in six focus-ring blocks, near-duplicate dark surfaces (`#0d0d0d`/`#111`/`#16171d`/`#1a1a1a`) and grey text shades drifted file to file, and the identical `outline: 2px solid …; outline-offset: 2px` focus treatment was copy-pasted five times. There was no single place to adjust the palette or scale.
+
+**Decision:** Define a design-token layer as CSS custom properties on `:root` in `index.css` (the one global, non-module stylesheet), and have every `.module.css` reference `var(--token)`:
+- **Colors** — surfaces, borders, text shades, accent, feedback, overlays/shadows.
+- **Radius scale** — `--radius-xs|sm|md|lg|pill`.
+- **Type scale** for small UI text — `--text-xs|sm|md`.
+- **Motion** — `--duration-fast|base`.
+- **Focus ring** — `--focus-ring` (+ `--focus-ring-offset`), applied as `outline: var(--focus-ring)` on every focusable control.
+- Plus `--tracking-wide` and `--z-modal`.
+
+Tokens preserve the previous values exactly (zero visual change). Spacing/padding/gap and genuine one-offs (`border-radius: 50%`, the `24px` close glyph, the single card box-shadow geometry, `z-index: 1`) were left as literals on purpose.
+
+**Why:** CSS custom properties on `:root` are global without any build-tooling or theme library, and — unlike CSS Module class names — are *not* scoped/renamed, so module files can reference them directly. Tokenizing only recurring or globally-meaningful values keeps the layer honest: the focus ring and palette are the high-value DRY wins, whereas a full spacing scale would force every shorthand (`48px 16px 16px`) into opaque token combinations, adding naming noise and risking subtle layout shifts for little benefit at this size. Keeping the literal values identical means the refactor is provably non-visual (verified via computed-style checks), and the dark-only base from decision #13 fits naturally as the first tokens (`--color-bg`, `--color-text`).
+
+Source: `frontend/src/index.css` (`:root` token block); all `frontend/src/**/*.module.css` consume the tokens.
